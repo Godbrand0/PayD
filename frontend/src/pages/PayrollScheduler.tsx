@@ -328,7 +328,8 @@ export default function PayrollScheduler() {
 
       // Show success overlay
       setOverlayStatus('success');
-      setOverlayTxHash(result.txHash);
+      const mockTxHash = `broadcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setOverlayTxHash(mockTxHash);
 
       // Auto-dismiss after 3 seconds
       setTimeout(() => {
