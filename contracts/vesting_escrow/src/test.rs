@@ -1,17 +1,19 @@
-#![cfg(test)]
-
 use super::*;
-use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env, token};
+use soroban_sdk::{
+    Address, Env,
+    testutils::{Address as _, Ledger},
+    token,
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn setup() -> (
     Env,
-    Address,                       // funder
-    Address,                       // beneficiary
-    Address,                       // clawback admin
-    Address,                       // token contract address
-    token::Client<'static>,        // token client
+    Address,                            // funder
+    Address,                            // beneficiary
+    Address,                            // clawback admin
+    Address,                            // token contract address
+    token::Client<'static>,             // token client
     token::StellarAssetClient<'static>, // token admin client
     VestingContractClient<'static>,     // vesting contract client
 ) {
@@ -25,13 +27,24 @@ fn setup() -> (
     let client = VestingContractClient::new(&e, &contract_id);
 
     let token_admin = Address::generate(&e);
-    let token_contract = e.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_contract = e
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let token_client = token::Client::new(&e, &token_contract);
     let token_admin_client = token::StellarAssetClient::new(&e, &token_contract);
 
     token_admin_client.mint(&funder, &100_000);
 
-    (e, funder, beneficiary, clawback_admin, token_contract, token_client, token_admin_client, client)
+    (
+        e,
+        funder,
+        beneficiary,
+        clawback_admin,
+        token_contract,
+        token_client,
+        token_admin_client,
+        client,
+    )
 }
 
 fn init_default(
@@ -62,14 +75,21 @@ fn init_default(
 #[test]
 fn test_initialize_success() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let config = client.get_config();
     assert_eq!(config.beneficiary, beneficiary);
     assert_eq!(config.token, token_contract);
     assert_eq!(config.total_amount, 10000);
     assert_eq!(config.claimed_amount, 0);
-    assert_eq!(config.is_active, true);
+    assert!(config.is_active);
     assert_eq!(config.cliff_seconds, 100);
     assert_eq!(config.duration_seconds, 1000);
     assert_eq!(config.clawback_admin, clawback_admin);
@@ -82,9 +102,23 @@ fn test_initialize_success() {
 #[should_panic(expected = "Already initialized")]
 fn test_initialize_twice_panics() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
     // Second initialization should fail
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 }
 
 #[test]
@@ -93,10 +127,14 @@ fn test_initialize_cliff_greater_than_duration_panics() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
     let start_time = e.ledger().timestamp();
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &500,  // cliff > duration
-        &100,  // duration
-        &1000, &clawback_admin,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &500, // cliff > duration
+        &100, // duration
+        &1000,
+        &clawback_admin,
     );
 }
 
@@ -106,8 +144,12 @@ fn test_initialize_zero_amount_panics() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
     let start_time = e.ledger().timestamp();
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &100, &1000,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &100,
+        &1000,
         &0, // zero amount
         &clawback_admin,
     );
@@ -119,8 +161,12 @@ fn test_initialize_negative_amount_panics() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
     let start_time = e.ledger().timestamp();
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &100, &1000,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &100,
+        &1000,
         &-100, // negative amount
         &clawback_admin,
     );
@@ -132,8 +178,14 @@ fn test_initialize_cliff_equals_duration() {
     let start_time = e.ledger().timestamp();
     // cliff == duration should succeed (all tokens vest at once after cliff)
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &1000, &1000, &5000, &clawback_admin,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &1000,
+        &1000,
+        &5000,
+        &clawback_admin,
     );
     let config = client.get_config();
     assert_eq!(config.cliff_seconds, 1000);
@@ -146,8 +198,14 @@ fn test_initialize_zero_cliff() {
     let start_time = e.ledger().timestamp();
     // Zero cliff should succeed — tokens begin vesting immediately
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &0, &1000, &5000, &clawback_admin,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &0,
+        &1000,
+        &5000,
+        &clawback_admin,
     );
     let config = client.get_config();
     assert_eq!(config.cliff_seconds, 0);
@@ -160,7 +218,14 @@ fn test_initialize_zero_cliff() {
 #[test]
 fn test_vested_amount_before_cliff() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     // Before cliff (< start + 100), nothing is vested
     let start = e.ledger().timestamp();
@@ -172,7 +237,14 @@ fn test_vested_amount_before_cliff() {
 #[test]
 fn test_vested_amount_at_cliff_boundary() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     // Exactly at cliff (start + 100): 100/1000 = 10% = 1000 tokens
@@ -183,7 +255,14 @@ fn test_vested_amount_at_cliff_boundary() {
 #[test]
 fn test_vested_amount_linear_progression() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
 
@@ -203,7 +282,14 @@ fn test_vested_amount_linear_progression() {
 #[test]
 fn test_vested_amount_at_duration_end() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 1000);
@@ -213,7 +299,14 @@ fn test_vested_amount_at_duration_end() {
 #[test]
 fn test_vested_amount_after_duration_end() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     // Well past duration — should cap at total
@@ -228,7 +321,14 @@ fn test_vested_amount_after_duration_end() {
 #[test]
 fn test_claim_before_cliff_does_nothing() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 50);
@@ -243,7 +343,14 @@ fn test_claim_before_cliff_does_nothing() {
 #[test]
 fn test_claim_partial_vesting() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 200);
@@ -258,7 +365,14 @@ fn test_claim_partial_vesting() {
 #[test]
 fn test_claim_multiple_partial_claims() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
 
@@ -284,7 +398,14 @@ fn test_claim_multiple_partial_claims() {
 #[test]
 fn test_claim_full_after_duration() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 2000);
@@ -298,7 +419,14 @@ fn test_claim_full_after_duration() {
 #[test]
 fn test_claim_idempotent_when_nothing_new() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 200);
@@ -319,21 +447,35 @@ fn test_claim_idempotent_when_nothing_new() {
 #[test]
 fn test_clawback_before_any_vesting() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     // Clawback immediately (before cliff) — all tokens go back to admin
     client.clawback();
 
     assert_eq!(token_client.balance(&clawback_admin), 10000);
     let config = client.get_config();
-    assert_eq!(config.is_active, false);
+    assert!(!config.is_active);
     assert_eq!(config.total_amount, 0);
 }
 
 #[test]
 fn test_clawback_partial_vesting() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     // 30% vested = 3000 tokens
@@ -344,14 +486,21 @@ fn test_clawback_partial_vesting() {
     // Admin gets unvested (7000)
     assert_eq!(token_client.balance(&clawback_admin), 7000);
     let config = client.get_config();
-    assert_eq!(config.is_active, false);
+    assert!(!config.is_active);
     assert_eq!(config.total_amount, 3000); // Capped at vested
 }
 
 #[test]
 fn test_clawback_then_beneficiary_can_claim_vested() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 400);
@@ -372,7 +521,14 @@ fn test_clawback_then_beneficiary_can_claim_vested() {
 #[should_panic(expected = "Already revoked/inactive")]
 fn test_clawback_twice_panics() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     e.ledger().set_sequence_number(10);
     client.clawback();
@@ -383,7 +539,14 @@ fn test_clawback_twice_panics() {
 #[test]
 fn test_clawback_after_full_vesting() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 2000);
@@ -393,14 +556,21 @@ fn test_clawback_after_full_vesting() {
     assert_eq!(token_client.balance(&clawback_admin), 0);
 
     let config = client.get_config();
-    assert_eq!(config.is_active, false);
+    assert!(!config.is_active);
     assert_eq!(config.total_amount, 10000); // Fully vested
 }
 
 #[test]
 fn test_clawback_after_partial_claim() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
 
@@ -433,7 +603,14 @@ fn test_clawback_after_partial_claim() {
 fn test_contract_balance_after_full_claim() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
     let contract_id = client.address.clone();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 2000);
@@ -449,7 +626,14 @@ fn test_contract_balance_after_full_claim() {
 fn test_contract_balance_after_clawback_and_claim() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
     let contract_id = client.address.clone();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
 
@@ -483,7 +667,14 @@ fn test_contract_balance_after_clawback_and_claim() {
 #[should_panic(expected = "Operation already processed in this ledger sequence")]
 fn test_claim_replay_same_ledger() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
     e.ledger().set_timestamp(start + 500);
@@ -497,7 +688,14 @@ fn test_claim_replay_same_ledger() {
 #[test]
 fn test_claim_allowed_different_ledgers() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let start = e.ledger().timestamp();
 
@@ -529,16 +727,22 @@ fn test_zero_cliff_immediate_vesting() {
     let client = VestingContractClient::new(&e, &contract_id);
 
     let token_admin = Address::generate(&e);
-    let token_contract = e.register_stellar_asset_contract_v2(token_admin.clone()).address();
-    let token_client = token::Client::new(&e, &token_contract);
+    let token_contract = e
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let token_admin_client = token::StellarAssetClient::new(&e, &token_contract);
     token_admin_client.mint(&funder, &10000);
 
     let start_time = e.ledger().timestamp();
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &0,    // zero cliff
-        &1000, &10000, &clawback_admin,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &0, // zero cliff
+        &1000,
+        &10000,
+        &clawback_admin,
     );
 
     // At time = start + 1, tokens should already be vesting
@@ -559,7 +763,9 @@ fn test_original_vesting_flow() {
     let client = VestingContractClient::new(&e, &contract_id);
 
     let token_admin = Address::generate(&e);
-    let token_contract = e.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_contract = e
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let token_client = token::Client::new(&e, &token_contract);
     let token_admin_client = token::StellarAssetClient::new(&e, &token_contract);
     token_admin_client.mint(&funder, &10000);
@@ -570,13 +776,19 @@ fn test_original_vesting_flow() {
     let amount = 10000;
 
     client.initialize(
-        &funder, &beneficiary, &token_contract, &start_time,
-        &cliff_seconds, &duration_seconds, &amount, &clawback_admin,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &start_time,
+        &cliff_seconds,
+        &duration_seconds,
+        &amount,
+        &clawback_admin,
     );
 
     let config = client.get_config();
     assert_eq!(config.total_amount, amount);
-    assert_eq!(config.is_active, true);
+    assert!(config.is_active);
     assert_eq!(token_client.balance(&contract_id), 10000);
     assert_eq!(token_client.balance(&funder), 0);
 
@@ -610,7 +822,7 @@ fn test_original_vesting_flow() {
     assert_eq!(token_client.balance(&contract_id), 3000);
 
     let config_revoked = client.get_config();
-    assert_eq!(config_revoked.is_active, false);
+    assert!(!config_revoked.is_active);
     assert_eq!(config_revoked.total_amount, 5000);
 
     // 6. Advance past end — vested still capped at 5000
@@ -638,9 +850,18 @@ fn test_contract_metadata() {
     let version = client.version();
     let author = client.author();
 
-    assert_eq!(name, soroban_sdk::String::from_str(&e, env!("CARGO_PKG_NAME")));
-    assert_eq!(version, soroban_sdk::String::from_str(&e, env!("CARGO_PKG_VERSION")));
-    assert_eq!(author, soroban_sdk::String::from_str(&e, env!("CARGO_PKG_AUTHORS")));
+    assert_eq!(
+        name,
+        soroban_sdk::String::from_str(&e, env!("CARGO_PKG_NAME"))
+    );
+    assert_eq!(
+        version,
+        soroban_sdk::String::from_str(&e, env!("CARGO_PKG_VERSION"))
+    );
+    assert_eq!(
+        author,
+        soroban_sdk::String::from_str(&e, env!("CARGO_PKG_AUTHORS"))
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -650,7 +871,14 @@ fn test_contract_metadata() {
 #[test]
 fn test_transfer_beneficiary_updates_config() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let new_beneficiary = Address::generate(&e);
     client.transfer_beneficiary(&new_beneficiary);
@@ -662,7 +890,14 @@ fn test_transfer_beneficiary_updates_config() {
 #[test]
 fn test_transferred_beneficiary_can_claim() {
     let (e, funder, beneficiary, clawback_admin, token_contract, token_client, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     let new_beneficiary = Address::generate(&e);
     client.transfer_beneficiary(&new_beneficiary);
@@ -681,7 +916,14 @@ fn test_transferred_beneficiary_can_claim() {
 #[should_panic(expected = "Vesting grant is no longer active")]
 fn test_transfer_beneficiary_panics_when_inactive() {
     let (e, funder, beneficiary, clawback_admin, token_contract, _, _, client) = setup();
-    init_default(&client, &e, &funder, &beneficiary, &token_contract, &clawback_admin);
+    init_default(
+        &client,
+        &e,
+        &funder,
+        &beneficiary,
+        &token_contract,
+        &clawback_admin,
+    );
 
     // Clawback deactivates the grant
     client.clawback();
