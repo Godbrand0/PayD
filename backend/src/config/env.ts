@@ -28,6 +28,12 @@ const jwtSecretSchema = (name: string) =>
 const envSchema = z.object({
   PORT: z.string().default('3000'),
   DATABASE_URL: z.string().default('postgres://localhost:5432/payd_test'),
+  DB_POOL_MIN: z.string().default('2'),
+  DB_POOL_MAX: z.string().default('20'),
+  DB_IDLE_TIMEOUT_MS: z.string().default('30000'),
+  DB_CONNECTION_TIMEOUT_MS: z.string().default('5000'),
+  DB_STATEMENT_TIMEOUT_MS: z.string().default('30000'),
+  DB_QUERY_TIMEOUT_MS: z.string().default('30000'),
   REDIS_URL: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CORS_ORIGIN: z.string().optional(),
@@ -83,4 +89,13 @@ export const getRateLimitConfig = () => ({
     windowMs: parseInt(config.RATE_LIMIT_DATA_WINDOW_MS, 10),
     maxRequests: parseInt(config.RATE_LIMIT_DATA_MAX, 10),
   },
+});
+
+export const getPoolConfig = () => ({
+  min: parseInt(config.DB_POOL_MIN, 10),
+  max: parseInt(config.DB_POOL_MAX, 10),
+  idleTimeoutMillis: parseInt(config.DB_IDLE_TIMEOUT_MS, 10),
+  connectionTimeoutMillis: parseInt(config.DB_CONNECTION_TIMEOUT_MS, 10),
+  statementTimeout: parseInt(config.DB_STATEMENT_TIMEOUT_MS, 10),
+  queryTimeout: parseInt(config.DB_QUERY_TIMEOUT_MS, 10),
 });

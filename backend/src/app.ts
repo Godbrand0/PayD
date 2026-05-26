@@ -15,6 +15,7 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swaggerConfig.js';
 import { requestLogger, errorLogger } from './middleware/requestLogger.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import { responseSizeBytes } from './utils/metrics.js';
 
 // Feature Routes
 import v1Routes from './routes/v1/index.js';
@@ -81,6 +82,32 @@ app.use(requestLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
+
+// Response timeout (30 seconds)
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Service Unavailable',
+        message: 'Request timed out',
+      });
+    }
+  });
+  next();
+});
+
+// Track response sizes for metrics
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = function (body: any) {
+    const bodyStr = JSON.stringify(body);
+    responseSizeBytes
+      .labels(req.method, req.route?.path || req.path, String(res.statusCode))
+      .observe(bodyStr.length);
+    return originalJson(body);
+  } as typeof res.json;
+  next();
+});
 
 // ─── Observability Endpoints ──────────────────────────────────────────────────
 

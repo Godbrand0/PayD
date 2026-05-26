@@ -129,6 +129,78 @@ export const errorTotal = new Counter({
   registers: [register],
 });
 
+// ─── Queue / Worker Metrics ──────────────────────────────────────────────────
+
+/** Gauge tracking the current depth of BullMQ job queues. */
+export const queueDepth = new Gauge({
+  name: 'queue_depth',
+  help: 'Current number of jobs waiting in each BullMQ queue',
+  labelNames: ['queue_name'],
+  registers: [register],
+});
+
+/** Counter tracking jobs processed by BullMQ workers, labelled by queue and status. */
+export const jobsProcessed = new Counter({
+  name: 'jobs_processed_total',
+  help: 'Total number of jobs processed by workers',
+  labelNames: ['queue_name', 'status'],
+  registers: [register],
+});
+
+/** Counter tracking cache hits and misses for the Redis cache layer. */
+export const cacheOperations = new Counter({
+  name: 'cache_operations_total',
+  help: 'Total number of cache operations',
+  labelNames: ['operation', 'result'],
+  registers: [register],
+});
+
+/** Histogram tracking response payload sizes in bytes. */
+export const responseSizeBytes = new Histogram({
+  name: 'http_response_size_bytes',
+  help: 'Size of HTTP response bodies in bytes',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000],
+  registers: [register],
+});
+
+/** Gauge tracking the number of active WebSocket connections. */
+export const activeWsConnections = new Gauge({
+  name: 'active_ws_connections',
+  help: 'Current number of active WebSocket connections',
+  registers: [register],
+});
+
+/** Gauge tracking the event loop lag in milliseconds. */
+export const eventLoopLag = new Gauge({
+  name: 'event_loop_lag_ms',
+  help: 'Event loop lag in milliseconds',
+  registers: [register],
+});
+
+/** Histogram tracking cache query latencies. */
+export const cacheQueryDuration = new Histogram({
+  name: 'cache_query_duration_seconds',
+  help: 'Duration of cache queries in seconds',
+  labelNames: ['operation'],
+  buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5],
+  registers: [register],
+});
+
+// ─── Active Event Loop Monitoring ────────────────────────────────────────────
+
+const lagCheckInterval = setInterval(() => {
+  const start = Date.now();
+  setImmediate(() => {
+    const lag = Date.now() - start;
+    eventLoopLag.set(lag);
+  });
+}, 5000);
+
+if (lagCheckInterval.unref) {
+  lagCheckInterval.unref();
+}
+
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 /**
