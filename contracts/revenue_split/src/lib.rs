@@ -1,9 +1,56 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, String, Vec};
+use soroban_sdk::{
+    contract, contracterror, contractevent, contractimpl, contracttype, token, Address, Env,
+    String, Vec,
+};
 
 #[cfg(test)]
 mod test;
+
+// ── Errors ────────────────────────────────────────────────────────────────────
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u32)]
+pub enum RevenueSplitError {
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    ZeroRecipients = 4,
+    ZeroBasisPoints = 5,
+    DuplicateRecipient = 6,
+    BasisPointsSumMismatch = 7,
+    NegativeAmount = 8,
+    LedgerReplayDetected = 9,
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+/// Emitted when a revenue distribution is executed.
+#[contractevent]
+pub struct RevenueDistributedEvent {
+    pub token: Address,
+    pub from: Address,
+    pub total_amount: i128,
+    pub recipient_count: u32,
+}
+
+/// Emitted when the recipient shares are updated.
+#[contractevent]
+pub struct RecipientsUpdatedEvent {
+    pub admin: Address,
+    pub recipient_count: u32,
+}
+
+/// Emitted when the admin address is changed.
+#[contractevent]
+pub struct AdminChangedEvent {
+    pub old_admin: Address,
+    pub new_admin: Address,
+}
+
+// ── Storage types ─────────────────────────────────────────────────────────────
 
 #[contracttype]
 pub enum DataKey {
@@ -40,7 +87,7 @@ pub struct RevenueSplitContract;
 
 #[contractimpl]
 impl RevenueSplitContract {
-    // ── SEP-0034 Contract Metadata (Issue #263) ───────────────────────────
+    // ── SEP-0034 Contract Metadata ───────────────────────────
 
     /// Returns the human-readable contract name (SEP-0034).
     pub fn name(env: Env) -> String {
@@ -58,16 +105,21 @@ impl RevenueSplitContract {
     }
 
     /// Initializes the contract with an admin and the initial recipient split.
-    pub fn init(env: Env, admin: Address, shares: Vec<RecipientShare>) {
+    pub fn init(
+        env: Env,
+        admin: Address,
+        shares: Vec<RecipientShare>,
+    ) -> Result<(), RevenueSplitError> {
         if env.storage().persistent().has(&DataKey::Admin) {
-            panic!("Already initialized");
+            return Err(RevenueSplitError::AlreadyInitialized);
         }
 
-        Self::validate_shares(&shares);
+        Self::validate_shares(&shares)?;
 
         env.storage().persistent().set(&DataKey::Admin, &admin);
         Self::store_recipients(&env, &shares);
         Self::bump_core_ttl(&env);
+        Ok(())
     }
 
     /// Returns the current admin address.
@@ -87,40 +139,62 @@ impl RevenueSplitContract {
     }
 
     /// Allows the current admin to set a new admin.
-    pub fn set_admin(env: Env, new_admin: Address) {
+    pub fn set_admin(env: Env, new_admin: Address) -> Result<(), RevenueSplitError> {
         let admin = Self::load_admin(&env);
         admin.require_auth();
         env.storage().persistent().set(&DataKey::Admin, &new_admin);
         Self::bump_core_ttl(&env);
+
+        AdminChangedEvent {
+            old_admin: admin,
+            new_admin: new_admin.clone(),
+        }
+        .publish(&env);
+        Ok(())
     }
 
     /// Updates the recipient splits dynamically (admin only).
-    pub fn update_recipients(env: Env, new_shares: Vec<RecipientShare>) {
+    pub fn update_recipients(
+        env: Env,
+        new_shares: Vec<RecipientShare>,
+    ) -> Result<(), RevenueSplitError> {
         let admin = Self::load_admin(&env);
         admin.require_auth();
-        Self::validate_shares(&new_shares);
+        Self::validate_shares(&new_shares)?;
         Self::store_recipients(&env, &new_shares);
         Self::bump_core_ttl(&env);
+
+        RecipientsUpdatedEvent {
+            admin,
+            recipient_count: new_shares.len(),
+        }
+        .publish(&env);
+        Ok(())
     }
 
     /// Distributes a specific token amount from a sender to the listed recipients based on their shares.
     ///
     /// ### Algorithm: Basis Points Distribution
     /// - Each recipient receives a portion calculated as: `(amount * basis_points) / 10000`.
-    /// - **Precision Management**: To ensure 100% of the funds are distributed and avoid 
-    ///   "dust" remaining in the sender's account due to rounding, the final recipient 
+    /// - **Precision Management**: To ensure 100% of the funds are distributed and avoid
+    ///   "dust" remaining in the sender's account due to rounding, the final recipient
     ///   in the list automatically absorbs any remainders.
     ///
     /// ### Requirements
     /// - `from` must authorize the transaction.
     /// - Must be the only distribution in this ledger (Replay protection).
-    pub fn distribute(env: Env, token: Address, from: Address, amount: i128) {
+    pub fn distribute(
+        env: Env,
+        token: Address,
+        from: Address,
+        amount: i128,
+    ) -> Result<(), RevenueSplitError> {
         if amount <= 0 {
-            return;
+            return Ok(());
         }
 
         from.require_auth();
-        Self::require_unique_ledger(&env);
+        Self::require_unique_ledger(&env)?;
 
         let shares = Self::load_recipients(&env);
         let preview = Self::build_distribution_preview(&env, &shares, amount);
@@ -135,12 +209,23 @@ impl RevenueSplitContract {
         // Accumulate total distributed for this token
         let td_key = DataKey::TotalDistributed(token.clone());
         let prev: i128 = env.storage().persistent().get(&td_key).unwrap_or(0);
-        env.storage().persistent().set(&td_key, &(prev + amount));
+        env.storage()
+            .persistent()
+            .set(&td_key, &(prev + amount));
         env.storage().persistent().extend_ttl(
             &td_key,
             PERSISTENT_TTL_THRESHOLD,
             PERSISTENT_TTL_EXTEND_TO,
         );
+
+        RevenueDistributedEvent {
+            token,
+            from,
+            total_amount: amount,
+            recipient_count: shares.len(),
+        }
+        .publish(&env);
+        Ok(())
     }
 
     /// Returns the ledger sequence of the last successful distribution.
@@ -162,12 +247,7 @@ impl RevenueSplitContract {
 
     /// Ensures a distribution has not already been executed in the current ledger
     /// sequence, preventing replay attacks.
-    ///
-    /// This mechanism uses the unique ledger sequence provided by the Soroban environment 
-    /// to ensure that the `distribute` function cannot be called more than once per 
-    /// ledger for this specific contract instance. This is a critical security 
-    /// measure for deterministic payout logic.
-    fn require_unique_ledger(env: &Env) {
+    fn require_unique_ledger(env: &Env) -> Result<(), RevenueSplitError> {
         let current_ledger = env.ledger().sequence();
         let last_ledger: u32 = env
             .storage()
@@ -175,7 +255,7 @@ impl RevenueSplitContract {
             .get(&DataKey::LastDistributeLedger)
             .unwrap_or(0);
         if last_ledger == current_ledger && current_ledger != 0 {
-            panic!("Distribution already processed in this ledger sequence");
+            return Err(RevenueSplitError::LedgerReplayDetected);
         }
 
         env.storage()
@@ -186,6 +266,7 @@ impl RevenueSplitContract {
             PERSISTENT_TTL_THRESHOLD,
             PERSISTENT_TTL_EXTEND_TO,
         );
+        Ok(())
     }
 
     fn load_admin(env: &Env) -> Address {
@@ -210,9 +291,9 @@ impl RevenueSplitContract {
         shares
     }
 
-    fn validate_shares(shares: &Vec<RecipientShare>) {
+    fn validate_shares(shares: &Vec<RecipientShare>) -> Result<(), RevenueSplitError> {
         if shares.is_empty() {
-            panic!("At least one recipient is required");
+            return Err(RevenueSplitError::ZeroRecipients);
         }
 
         let mut total_bp = 0u32;
@@ -220,14 +301,14 @@ impl RevenueSplitContract {
         while i < shares.len() {
             let share = shares.get(i).expect("Recipient share missing");
             if share.basis_points == 0 {
-                panic!("Recipient share must be greater than zero");
+                return Err(RevenueSplitError::ZeroBasisPoints);
             }
 
             let mut j = i + 1;
             while j < shares.len() {
                 let other = shares.get(j).expect("Recipient share missing");
                 if share.destination == other.destination {
-                    panic!("Duplicate recipient");
+                    return Err(RevenueSplitError::DuplicateRecipient);
                 }
                 j += 1;
             }
@@ -239,8 +320,10 @@ impl RevenueSplitContract {
         }
 
         if total_bp != TOTAL_BASIS_POINTS {
-            panic!("Shares must sum to 10000 basis points");
+            return Err(RevenueSplitError::BasisPointsSumMismatch);
         }
+
+        Ok(())
     }
 
     fn store_recipients(env: &Env, shares: &Vec<RecipientShare>) {
@@ -257,8 +340,8 @@ impl RevenueSplitContract {
     ///
     /// ### Algorithm: Basis Points Distribution
     /// - Each recipient receives a portion calculated as: `(amount * basis_points) / 10000`.
-    /// - **Precision Management**: To ensure 100% of the funds are distributed and avoid 
-    ///   "dust" remaining in the sender's account due to rounding, the final recipient 
+    /// - **Precision Management**: To ensure 100% of the funds are distributed and avoid
+    ///   "dust" remaining in the sender's account due to rounding, the final recipient
     ///   in the list automatically absorbs any remainders (`amount - amount_distributed`).
     fn build_distribution_preview(
         env: &Env,

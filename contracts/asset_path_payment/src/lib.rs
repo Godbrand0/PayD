@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, contracterror, contractevent,
-    Address, Env, String, Symbol, Vec, symbol_short, token, Bytes
+    Address, Env, String, Symbol, Vec, symbol_short, token
 };
 
 /// Errors for path payment operations
@@ -39,7 +39,7 @@ pub enum DataKey {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PathHop {
     pub asset: Address,
-    pub pool_id: Option<Bytes>,
+    pub pool_id: Option<Address>,
 }
 
 /// Payment record for tracking path payments
@@ -219,7 +219,8 @@ impl AssetPathPaymentContract {
             dest_asset,
             source_amount,
             dest_min_amount,
-        };
+        }
+        .publish(&env);
 
         Ok(count)
     }
@@ -258,8 +259,9 @@ impl AssetPathPaymentContract {
                 error_code: PathPaymentError::SlippageExceeded as u32,
                 error_message: String::from_str(&env, "Slippage exceeded"),
                 partial_failure: true,
-            };
-            
+            }
+            .publish(&env);
+
             return Err(PathPaymentError::SlippageExceeded);
         }
 
@@ -279,7 +281,8 @@ impl AssetPathPaymentContract {
             payment_id,
             actual_source_amount,
             actual_dest_amount,
-        };
+        }
+        .publish(&env);
 
         Ok(())
     }
@@ -315,7 +318,8 @@ impl AssetPathPaymentContract {
             error_code,
             error_message,
             partial_failure,
-        };
+        }
+        .publish(&env);
 
         Ok(())
     }

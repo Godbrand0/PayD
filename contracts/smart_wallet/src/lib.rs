@@ -3,7 +3,7 @@
 use soroban_sdk::{
     Bytes, BytesN, Env, String, Vec,
     auth::{Context, CustomAccountInterface},
-    contract, contracterror, contractimpl, contracttype,
+    contract, contracterror, contractevent, contractimpl, contracttype,
     crypto::Hash,
 };
 
@@ -18,6 +18,36 @@ pub enum WalletError {
     UnknownSigner = 5,
     InvalidSignature = 6,
     NotEnoughSignatures = 7,
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+/// Emitted when the wallet is initialized with its signer set.
+#[contractevent]
+pub struct WalletInitializedEvent {
+    pub signer_count: u32,
+    pub threshold: u32,
+}
+
+/// Emitted when a new signer is added to the wallet.
+#[contractevent]
+pub struct SignerAddedEvent {
+    pub added: SignerKey,
+    pub total_signers: u32,
+}
+
+/// Emitted when a signer is removed from the wallet.
+#[contractevent]
+pub struct SignerRemovedEvent {
+    pub removed: SignerKey,
+    pub total_signers: u32,
+}
+
+/// Emitted when the signing threshold is changed.
+#[contractevent]
+pub struct ThresholdChangedEvent {
+    pub old_threshold: u32,
+    pub new_threshold: u32,
 }
 
 #[contracttype]
@@ -91,6 +121,12 @@ impl SmartWalletContract {
         env.storage()
             .instance()
             .set(&DataKey::Threshold, &threshold);
+
+        WalletInitializedEvent {
+            signer_count: signers.len(),
+            threshold,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -110,11 +146,18 @@ impl SmartWalletContract {
         env.current_contract_address().require_auth();
 
         let signers = Self::load_signers(&env)?;
+        let old_threshold = Self::load_threshold(&env)?;
         Self::validate_threshold(&signers, threshold)?;
 
         env.storage()
             .instance()
             .set(&DataKey::Threshold, &threshold);
+
+        ThresholdChangedEvent {
+            old_threshold,
+            new_threshold: threshold,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -136,8 +179,14 @@ impl SmartWalletContract {
             i += 1;
         }
 
-        signers.push_back(new_signer);
+        signers.push_back(new_signer.clone());
         env.storage().instance().set(&DataKey::Signers, &signers);
+
+        SignerAddedEvent {
+            added: new_signer,
+            total_signers: signers.len(),
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -180,6 +229,12 @@ impl SmartWalletContract {
         }
 
         env.storage().instance().set(&DataKey::Signers, &new_signers);
+
+        SignerRemovedEvent {
+            removed: signer,
+            total_signers: new_signers.len(),
+        }
+        .publish(&env);
         Ok(())
     }
 

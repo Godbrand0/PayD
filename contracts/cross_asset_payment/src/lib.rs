@@ -1,9 +1,27 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractevent, contractimpl, contracttype, symbol_short, token, Address, Env,
-    String, Symbol,
+    contract, contracterror, contractevent, contractimpl, contracttype, symbol_short, token,
+    Address, Env, String, Symbol,
 };
+
+// ── Errors ────────────────────────────────────────────────────────────────────
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u32)]
+pub enum CrossAssetPaymentError {
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    InvalidAmount = 4,
+    EmptyRoutingFields = 5,
+    LedgerReplayDetected = 6,
+    PaymentNotFound = 7,
+    PaymentNotPending = 8,
+    InvalidStatusTransition = 9,
+    AdminMismatch = 10,
+}
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +56,8 @@ pub struct EscrowRefundedEvent {
     pub amount: i128,
 }
 
+// ── Storage types ─────────────────────────────────────────────────────────────
+
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
@@ -70,7 +90,7 @@ pub struct CrossAssetPaymentContract;
 
 #[contractimpl]
 impl CrossAssetPaymentContract {
-    // ── SEP-0034 Contract Metadata (Issue #263) ───────────────────────────
+    // ── SEP-0034 Contract Metadata ───────────────────────────
 
     /// Returns the human-readable contract name (SEP-0034).
     pub fn name(env: Env) -> String {
@@ -88,13 +108,16 @@ impl CrossAssetPaymentContract {
     }
 
     /// Initializes the contract with an admin and resets the payment counter.
-    pub fn init(env: Env, admin: Address) {
+    pub fn init(env: Env, admin: Address) -> Result<(), CrossAssetPaymentError> {
         if env.storage().persistent().has(&DataKey::Admin) {
-            panic!("Already initialized");
+            return Err(CrossAssetPaymentError::AlreadyInitialized);
         }
         env.storage().persistent().set(&DataKey::Admin, &admin);
-        env.storage().persistent().set(&DataKey::PaymentCount, &0u64);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PaymentCount, &0u64);
         Self::bump_core_ttl(&env);
+        Ok(())
     }
 
     /// Extends TTL for critical config and counter keys.
@@ -112,16 +135,16 @@ impl CrossAssetPaymentContract {
         receiver_id: String,
         target_asset: String,
         anchor_id: String,
-    ) -> u64 {
+    ) -> Result<u64, CrossAssetPaymentError> {
         if amount <= 0 {
-            panic!("Amount must be positive");
+            return Err(CrossAssetPaymentError::InvalidAmount);
         }
         if receiver_id.is_empty() || target_asset.is_empty() || anchor_id.is_empty() {
-            panic!("Payment routing fields must be provided");
+            return Err(CrossAssetPaymentError::EmptyRoutingFields);
         }
 
         from.require_auth();
-        Self::require_unique_ledger(&env, &from);
+        Self::require_unique_ledger(&env, &from)?;
 
         let token_client = token::Client::new(&env, &asset);
         token_client.transfer(&from, env.current_contract_address(), &amount);
@@ -146,14 +169,25 @@ impl CrossAssetPaymentContract {
         }
         .publish(&env);
 
-        payment_id
+        Ok(payment_id)
     }
 
     /// Updates the stored status for a payment record (admin only).
-    pub fn update_status(env: Env, payment_id: u64, new_status: Symbol) {
+    ///
+    /// Enforces state machine rules:
+    /// - `pending` may transition to `process`, `complete`, or `failed`.
+    /// - `process` may transition to `complete` or `failed`.
+    /// - `complete` and `failed` are terminal — no further transitions allowed.
+    pub fn update_status(
+        env: Env,
+        payment_id: u64,
+        new_status: Symbol,
+    ) -> Result<(), CrossAssetPaymentError> {
         Self::require_admin(&env);
 
-        let mut record = Self::load_payment(&env, payment_id);
+        let mut record = Self::load_payment(&env, payment_id)?;
+        Self::validate_status_transition(&record.status, &new_status)?;
+
         record.status = new_status.clone();
         Self::store_payment(&env, payment_id, &record);
 
@@ -162,14 +196,20 @@ impl CrossAssetPaymentContract {
             new_status,
         }
         .publish(&env);
+        Ok(())
     }
 
     /// Completes a pending payment and releases escrowed funds to the recipient.
-    pub fn complete_payment(env: Env, admin: Address, payment_id: u64, recipient: Address) {
-        Self::require_matching_admin(&env, &admin);
+    pub fn complete_payment(
+        env: Env,
+        admin: Address,
+        payment_id: u64,
+        recipient: Address,
+    ) -> Result<(), CrossAssetPaymentError> {
+        Self::require_matching_admin(&env, &admin)?;
 
-        let mut record = Self::load_payment(&env, payment_id);
-        Self::require_pending_status(&record);
+        let mut record = Self::load_payment(&env, payment_id)?;
+        Self::require_pending_status(&record)?;
 
         let token_client = token::Client::new(&env, &record.asset);
         token_client.transfer(&env.current_contract_address(), &recipient, &record.amount);
@@ -188,14 +228,19 @@ impl CrossAssetPaymentContract {
             amount: record.amount,
         }
         .publish(&env);
+        Ok(())
     }
 
     /// Marks a pending payment as failed and refunds escrowed funds to the sender.
-    pub fn fail_payment(env: Env, admin: Address, payment_id: u64) {
-        Self::require_matching_admin(&env, &admin);
+    pub fn fail_payment(
+        env: Env,
+        admin: Address,
+        payment_id: u64,
+    ) -> Result<(), CrossAssetPaymentError> {
+        Self::require_matching_admin(&env, &admin)?;
 
-        let mut record = Self::load_payment(&env, payment_id);
-        Self::require_pending_status(&record);
+        let mut record = Self::load_payment(&env, payment_id)?;
+        Self::require_pending_status(&record)?;
 
         let token_client = token::Client::new(&env, &record.asset);
         token_client.transfer(&env.current_contract_address(), &record.from, &record.amount);
@@ -214,6 +259,7 @@ impl CrossAssetPaymentContract {
             amount: record.amount,
         }
         .publish(&env);
+        Ok(())
     }
 
     /// Returns the stored payment details when present.
@@ -256,9 +302,15 @@ impl CrossAssetPaymentContract {
 
     fn increment_payment_count(env: &Env) -> u64 {
         Self::bump_core_ttl(env);
-        let mut count: u64 = env.storage().persistent().get(&DataKey::PaymentCount).unwrap_or(0);
+        let mut count: u64 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::PaymentCount)
+            .unwrap_or(0);
         count += 1;
-        env.storage().persistent().set(&DataKey::PaymentCount, &count);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PaymentCount, &count);
         env.storage().persistent().extend_ttl(
             &DataKey::PaymentCount,
             PERSISTENT_TTL_THRESHOLD,
@@ -267,19 +319,19 @@ impl CrossAssetPaymentContract {
         count
     }
 
-    fn load_payment(env: &Env, payment_id: u64) -> PaymentRecord {
+    fn load_payment(
+        env: &Env,
+        payment_id: u64,
+    ) -> Result<PaymentRecord, CrossAssetPaymentError> {
         let key = DataKey::Payment(payment_id);
-        let record: PaymentRecord = env
-            .storage()
-            .persistent()
-            .get(&key)
-            .expect("Payment not found");
+        let record: Option<PaymentRecord> = env.storage().persistent().get(&key);
+        let record = record.ok_or(CrossAssetPaymentError::PaymentNotFound)?;
         env.storage().persistent().extend_ttl(
             &key,
             PAYMENT_TTL_THRESHOLD,
             PAYMENT_TTL_EXTEND_TO,
         );
-        record
+        Ok(record)
     }
 
     fn store_payment(env: &Env, payment_id: u64, record: &PaymentRecord) {
@@ -292,10 +344,51 @@ impl CrossAssetPaymentContract {
         );
     }
 
-    fn require_pending_status(record: &PaymentRecord) {
+    fn require_pending_status(record: &PaymentRecord) -> Result<(), CrossAssetPaymentError> {
         if record.status != symbol_short!("pending") {
-            panic!("Payment must be pending");
+            return Err(CrossAssetPaymentError::PaymentNotPending);
         }
+        Ok(())
+    }
+
+    /// Validates that a status transition is allowed by the state machine.
+    ///
+    /// Allowed transitions:
+    /// - `pending` → `process`, `complete`, `failed`
+    /// - `process` → `complete`, `failed`
+    /// - `complete` and `failed` are terminal (no further transitions).
+    fn validate_status_transition(
+        current: &Symbol,
+        new: &Symbol,
+    ) -> Result<(), CrossAssetPaymentError> {
+        let pending = symbol_short!("pending");
+        let process = symbol_short!("process");
+        let complete = symbol_short!("complete");
+        let failed = symbol_short!("failed");
+
+        // Terminal states cannot transition further
+        if *current == complete || *current == failed {
+            return Err(CrossAssetPaymentError::InvalidStatusTransition);
+        }
+
+        // pending can go to process, complete, or failed
+        if *current == pending {
+            if *new == process || *new == complete || *new == failed {
+                return Ok(());
+            }
+            return Err(CrossAssetPaymentError::InvalidStatusTransition);
+        }
+
+        // process can go to complete or failed
+        if *current == process {
+            if *new == complete || *new == failed {
+                return Ok(());
+            }
+            return Err(CrossAssetPaymentError::InvalidStatusTransition);
+        }
+
+        // Unknown current status — reject
+        Err(CrossAssetPaymentError::InvalidStatusTransition)
     }
 
     fn require_admin(env: &Env) {
@@ -307,24 +400,31 @@ impl CrossAssetPaymentContract {
         admin.require_auth();
     }
 
-    fn require_matching_admin(env: &Env, admin: &Address) {
+    fn require_matching_admin(
+        env: &Env,
+        admin: &Address,
+    ) -> Result<(), CrossAssetPaymentError> {
         let stored_admin: Address = env
             .storage()
             .persistent()
             .get(&DataKey::Admin)
-            .expect("Not initialized");
+            .ok_or(CrossAssetPaymentError::NotInitialized)?;
         if stored_admin != *admin {
-            panic!("Unauthorized admin");
+            return Err(CrossAssetPaymentError::AdminMismatch);
         }
         admin.require_auth();
+        Ok(())
     }
 
-    fn require_unique_ledger(env: &Env, sender: &Address) {
+    fn require_unique_ledger(
+        env: &Env,
+        sender: &Address,
+    ) -> Result<(), CrossAssetPaymentError> {
         let current_ledger = env.ledger().sequence();
         let key = DataKey::LastPaymentLedger(sender.clone());
         let last_ledger: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         if last_ledger == current_ledger && current_ledger != 0 {
-            panic!("Payment already initiated in this ledger sequence");
+            return Err(CrossAssetPaymentError::LedgerReplayDetected);
         }
         env.storage().persistent().set(&key, &current_ledger);
         env.storage().persistent().extend_ttl(
@@ -332,6 +432,7 @@ impl CrossAssetPaymentContract {
             PERSISTENT_TTL_THRESHOLD,
             PERSISTENT_TTL_EXTEND_TO,
         );
+        Ok(())
     }
 
     fn bump_core_ttl(env: &Env) {
