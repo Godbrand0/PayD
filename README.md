@@ -3,6 +3,8 @@
 [![Build Status](https://github.com/Gildado/PayD/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Gildado/PayD/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Stellar Compatible](https://img.shields.io/badge/Stellar-Compatible-08B5E5?style=flat-square&logo=stellar)](https://www.stellar.org/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289DA?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/payd-community)
+[![Slack](https://img.shields.io/badge/Slack-Join%20Us-4A154B?style=flat-square&logo=slack&logoColor=white)](https://join.slack.com/t/payd-community/shared_invite)
 
 ## License
 
@@ -322,6 +324,15 @@ npm run contracts:bootstrap -- --contract bulk_payment,cross_asset_payment
 We'd like to extend a huge thank you to everyone who has contributed to making PayD what it is today! For a full list of our amazing contributors, please see our [Contributors List](CONTRIBUTORS.md).
 
 [![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors)
+
+## 💬 Community
+
+Join our community to get help, share ideas, and collaborate with other PayD users and contributors:
+
+- **Discord**: [Join our Discord server](https://discord.gg/payd-community) for real-time chat and support
+- **Slack**: [Join our Slack workspace](https://join.slack.com/t/payd-community/shared_invite) for team collaboration
+
+For more information, see our [Community Guide](docs/COMMUNITY.md).
 
 ## Credits.
 
