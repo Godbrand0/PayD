@@ -2,7 +2,9 @@ import { Router } from 'express';
 import passport from 'passport';
 import { generateToken } from '../services/authService.js';
 import { AuthController } from '../controllers/authController.js';
+import { SocialAuthController } from '../controllers/socialAuthController.js';
 import { authRateLimit } from '../middlewares/rateLimitMiddleware.js';
+import { authenticateJWT } from '../middlewares/auth.js';
 
 const router = Router();
 
@@ -56,5 +58,9 @@ router.get(
     );
   }
 );
+
+// Social identity management (requires authenticated user)
+router.get('/social-identities', authenticateJWT, SocialAuthController.listIdentities);
+router.delete('/social-identities/:provider', authenticateJWT, SocialAuthController.unlinkProvider);
 
 export default router;
