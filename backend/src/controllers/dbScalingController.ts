@@ -157,6 +157,54 @@ export class DbScalingController {
     }
   }
 
+  // ── Part 42 (#287) ─────────────────────────────────────────────────────
+
+  /** #287a — Background writer and checkpoint statistics. */
+  async getBgwriterStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getBgwriterStats();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch bgwriter stats');
+      next(err);
+    }
+  }
+
+  /** #287b — Temporary file usage for the current database. */
+  async getTempFileUsage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getTempFileUsage();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch temp file usage');
+      next(err);
+    }
+  }
+
+  // ── Part 50 (#295) ─────────────────────────────────────────────────────
+
+  /** #295a — Database-wide transaction and conflict statistics. */
+  async getDatabaseStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getDatabaseStats();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch database stats');
+      next(err);
+    }
+  }
+
+  /** #295b — Block I/O timing statistics. */
+  async getBlockIoStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getBlockIoStats();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch block I/O stats');
+      next(err);
+    }
+  }
+
   // ── Part 39 (#284) ─────────────────────────────────────────────────────
 
   /** #284a — Lock contention between concurrent backends. */

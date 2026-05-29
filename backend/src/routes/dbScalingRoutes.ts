@@ -196,6 +196,86 @@ router.get('/seq-scan-stats', (req, res, next) => ctrl.getSeqScanStats(req, res,
  */
 router.get('/wal-stats', (req, res, next) => ctrl.getWalStats(req, res, next));
 
+// ── Part 42 (#287) ──────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/bgwriter-stats:
+ *   get:
+ *     summary: Background writer and checkpoint statistics (Part 42)
+ *     description: >
+ *       Queries pg_stat_bgwriter for checkpoint counts, buffer writes,
+ *       and allocation metrics since the last stats reset.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Bgwriter statistics snapshot
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/bgwriter-stats', (req, res, next) => ctrl.getBgwriterStats(req, res, next));
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/temp-file-usage:
+ *   get:
+ *     summary: Temporary file spill usage for the current database (Part 42)
+ *     description: >
+ *       Returns temp_files and temp_bytes from pg_stat_database. High values
+ *       indicate queries exceeding work_mem and spilling sorts/hashes to disk.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Temp file usage snapshot
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/temp-file-usage', (req, res, next) => ctrl.getTempFileUsage(req, res, next));
+
+// ── Part 50 (#295) ──────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/database-stats:
+ *   get:
+ *     summary: Database-wide transaction and conflict statistics (Part 50)
+ *     description: >
+ *       Aggregates xact_commit/rollback, block cache hit ratio, deadlocks,
+ *       and temp usage from pg_stat_database for the current database.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Database statistics snapshot
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/database-stats', (req, res, next) => ctrl.getDatabaseStats(req, res, next));
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/block-io-stats:
+ *   get:
+ *     summary: Block I/O and session timing statistics (Part 50)
+ *     description: >
+ *       Returns cumulative blk_read_time, blk_write_time, session_time,
+ *       active_time, and idle_in_transaction_time from pg_stat_database.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Block I/O timing snapshot
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/block-io-stats', (req, res, next) => ctrl.getBlockIoStats(req, res, next));
+
 // ── Part 39 (#284) ──────────────────────────────────────────────────────────
 
 /**
