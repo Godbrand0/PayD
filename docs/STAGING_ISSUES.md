@@ -36,9 +36,9 @@ The backend codebase has both an `index.ts` (entry point) and an `app.ts` (appli
 
 ### 1. Asset Trustlines
 
-On Testnet, accounts must manually establish trustlines for the `ORGUSD` (or other custom) assets before they can receive payments.
+On Testnet, accounts still need to approve the trustline transaction in their wallet, but the app now prompts for `ORGUSD` trustline setup during onboarding.
 
-- **Status**: Manual process for now. Future updates will automate trustline creation during onboarding.
+- **Status**: Automated prompting is now available; manual wallet approval is still required.
 
 ### 2. Rate Limiting
 

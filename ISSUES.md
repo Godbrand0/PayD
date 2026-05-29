@@ -18,7 +18,7 @@ _Focuses on asset issuance, trustlines, payment batching, and Soroban logic._
 | ID   | Issue Title                                                                               | Difficulty | Status  |
 | :--- | :---------------------------------------------------------------------------------------- | :--------: | :-----: |
 | #001 | [Issue ORGUSD Custom Asset on Stellar Testnet](docs/issues/001-issue-orgusd-asset.md)     |   ● HARD   | ✅ DONE |
-| #002 | [Implement Trustline Acceptance Flow](docs/issues/002-trustline-flow.md)                  |  ● MEDIUM  | ⏳ TODO |
+| #002 | [Implement Trustline Acceptance Flow](docs/issues/002-trustline-flow.md)                  |  ● MEDIUM  | ✅ DONE |
 | #003 | [Build Bulk Payment Transaction Batching](docs/issues/003-bulk-payment-batching.md)       |   ● HARD   | ⏳ TODO |
 | #004 | [Set Up Horizon Client & Config](docs/issues/004-horizon-client-setup.md)                 |   ● EASY   | ⏳ TODO |
 | #005 | [Integrate Anchor SEP-24 Protocol](docs/issues/005-sep-24-integration.md)                 |   ● HARD   | ⏳ TODO |
@@ -26,7 +26,7 @@ _Focuses on asset issuance, trustlines, payment batching, and Soroban logic._
 | #007 | [Build On-Chain Tx Verification & Logging](docs/issues/007-tx-verification-logging.md)    |  ● MEDIUM  | ⏳ TODO |
 | #008 | [Implement Account Balance Preflight Checks](docs/issues/008-balance-preflight-checks.md) |   ● EASY   | ⏳ TODO |
 | #009 | [Design Soroban Smart Contract](docs/issues/009-soroban-escrow-contract.md)               |   ● HARD   | ✅ DONE |
-| #010 | [Write Stellar Tx Signing Unit Tests](docs/issues/010-stellar-signing-tests.md)           |  ● MEDIUM  | ⏳ TODO |
+| #010 | [Write Stellar Tx Signing Unit Tests](docs/issues/010-stellar-signing-tests.md)           |  ● MEDIUM  | ✅ DONE |
 | #031 | [Multi-Sig for Issuer Account](docs/issues/031-multi-sig-issuer.md)                       |   ● HARD   | ⏳ TODO |
 | #032 | [Clawback Support for ORGUSD](docs/issues/032-clawback-support.md)                        |  ● MEDIUM  | ⏳ TODO |
 | #033 | [Revenue Split Logic via Soroban](docs/issues/033-soroban-revenue-split.md)               |   ● HARD   | ⏳ TODO |
@@ -60,7 +60,7 @@ _Focuses on project structure, database schema, payroll scheduling, and API logi
 | ID   | Issue Title                                                                                           | Difficulty | Status  |
 | :--- | :---------------------------------------------------------------------------------------------------- | :--------: | :-----: |
 | #011 | [Set Up Express.js Project Structure](docs/issues/011-express-ts-setup.md)                            |  ● MEDIUM  | ⏳ TODO |
-| #012 | [Design & Migrate PostgreSQL Schema](docs/issues/012-db-schema-migrations.md)                         |  ● MEDIUM  | ⏳ TODO |
+| #012 | [Design & Migrate PostgreSQL Schema](docs/issues/012-db-schema-migrations.md)                         |  ● MEDIUM  | ✅ DONE |
 | #013 | [Build Payroll Scheduling Engine](docs/issues/013-payroll-scheduler.md)                               |   ● HARD   | ⏳ TODO |
 | #014 | [Implement JWT Auth & RBAC](docs/issues/014-jwt-rbac-auth.md)                                         |   ● EASY   | ⏳ TODO |
 | #015 | [Build CSV Bulk Import Parser & Validator](docs/issues/015-csv-importer.md)                           |   ● HARD   | ⏳ TODO |
@@ -71,7 +71,7 @@ _Focuses on project structure, database schema, payroll scheduling, and API logi
 | #020 | [Dockerize Backend Service](docs/issues/020-docker-setup.md)                                          |   ● EASY   | ⏳ TODO |
 | #044 | [OAuth2 Social Login Integration](docs/issues/044-oauth2-social-login.md)                             |  ● MEDIUM  | ⏳ TODO |
 | #045 | [Multi-tenant Architecture Support](docs/issues/045-multi-tenant-architecture.md)                     |   ● HARD   | ⏳ TODO |
-| #046 | [Two-Factor Authentication (2FA)](docs/issues/046-2fa-support.md)                                     |  ● MEDIUM  | ⏳ TODO |
+| #046 | [Two-Factor Authentication (2FA)](docs/issues/046-2fa-support.md)                                     |  ● MEDIUM  | ✅ DONE |
 | #047 | [Data Export System (PDF/Excel)](docs/issues/047-data-export-system.md)                               |  ● MEDIUM  | ⏳ TODO |
 | #048 | [Webhook System for Integrations](docs/issues/048-webhook-system.md)                                  |   ● HARD   | ⏳ TODO |
 | #049 | [Support for Performance Bonuses](docs/issues/049-performance-bonuses.md)                             |   ● EASY   | ⏳ TODO |
