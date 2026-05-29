@@ -10,7 +10,7 @@ export const SchedulePreview: React.FC<Props> = ({ startDate, frequency }) => {
   const getUpcomingDates = () => {
     if (!startDate) return [];
     const dates = [];
-    let current = new Date(startDate);
+    const current = new Date(startDate);
     
     for (let i = 0; i < 5; i++) {
       dates.push(new Date(current));

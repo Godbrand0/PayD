@@ -43,7 +43,7 @@ export const PayrollScheduleForm: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setIsSaved(true);
       showSuccess('Payroll schedule configured successfully!', 'Success');
-    } catch (err) {
+    } catch {
       showError('Failed to save schedule.', 'Server Error');
     } finally {
       setIsLoading(false);
@@ -71,7 +71,7 @@ export const PayrollScheduleForm: React.FC = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
+    <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-8 max-w-4xl">
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-6">Payroll Schedule Configuration</h2>
         
