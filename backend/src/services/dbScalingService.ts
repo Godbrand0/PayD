@@ -349,6 +349,150 @@ export class DbScalingService {
     }));
   }
 
+  // ── Part 41 (#286) ───────────────────────────────────────────────────────
+
+  /**
+   * #286a — Background writer / checkpoint activity from pg_stat_bgwriter.
+   * Surfaces checkpoint frequency, buffer write counts, and stall time so
+   * operators can tune checkpoint_completion_target and bgwriter settings.
+   */
+  async getBgwriterStats(): Promise<{
+    checkpointsTimed: number;
+    checkpointsRequested: number;
+    buffersCheckpoint: number;
+    buffersClean: number;
+    maxWrittenClean: number;
+    buffersBackend: number;
+    buffersBackendFsync: number;
+    buffersAlloc: number;
+    checkpointWriteTimeMs: number;
+    checkpointSyncTimeMs: number;
+    statsResetAt: string | null;
+  }> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      checkpoints_timed: bigint;
+      checkpoints_req: bigint;
+      buffers_checkpoint: bigint;
+      buffers_clean: bigint;
+      maxwritten_clean: bigint;
+      buffers_backend: bigint;
+      buffers_backend_fsync: bigint;
+      buffers_alloc: bigint;
+      checkpoint_write_time: number;
+      checkpoint_sync_time: number;
+      stats_reset: Date | null;
+    }>>`
+      SELECT
+        checkpoints_timed,
+        checkpoints_req,
+        buffers_checkpoint,
+        buffers_clean,
+        maxwritten_clean,
+        buffers_backend,
+        buffers_backend_fsync,
+        buffers_alloc,
+        checkpoint_write_time,
+        checkpoint_sync_time,
+        stats_reset
+      FROM pg_stat_bgwriter
+    `;
+    const r = rows[0];
+    if (!r) {
+      return {
+        checkpointsTimed: 0, checkpointsRequested: 0,
+        buffersCheckpoint: 0, buffersClean: 0, maxWrittenClean: 0,
+        buffersBackend: 0, buffersBackendFsync: 0, buffersAlloc: 0,
+        checkpointWriteTimeMs: 0, checkpointSyncTimeMs: 0, statsResetAt: null,
+      };
+    }
+    return {
+      checkpointsTimed:     Number(r.checkpoints_timed),
+      checkpointsRequested: Number(r.checkpoints_req),
+      buffersCheckpoint:    Number(r.buffers_checkpoint),
+      buffersClean:         Number(r.buffers_clean),
+      maxWrittenClean:      Number(r.maxwritten_clean),
+      buffersBackend:       Number(r.buffers_backend),
+      buffersBackendFsync:  Number(r.buffers_backend_fsync),
+      buffersAlloc:         Number(r.buffers_alloc),
+      checkpointWriteTimeMs: r.checkpoint_write_time,
+      checkpointSyncTimeMs:  r.checkpoint_sync_time,
+      statsResetAt: r.stats_reset ? r.stats_reset.toISOString() : null,
+    };
+  }
+
+  /**
+   * #286b — Database-level statistics from pg_stat_database for the current DB.
+   * Provides transaction throughput, cache hit ratio, deadlock counts, and
+   * temporary file usage in a single snapshot.
+   */
+  async getDatabaseStats(): Promise<{
+    dbName: string;
+    numBackends: number;
+    xactCommit: number;
+    xactRollback: number;
+    blksRead: number;
+    blksHit: number;
+    cacheHitRatio: number;
+    tempFiles: number;
+    tempBytes: number;
+    deadlocks: number;
+    conflictsTotal: number;
+    statsResetAt: string | null;
+  }> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      datname: string;
+      numbackends: number;
+      xact_commit: bigint;
+      xact_rollback: bigint;
+      blks_read: bigint;
+      blks_hit: bigint;
+      temp_files: bigint;
+      temp_bytes: bigint;
+      deadlocks: bigint;
+      conflicts: bigint;
+      stats_reset: Date | null;
+    }>>`
+      SELECT
+        datname,
+        numbackends,
+        xact_commit,
+        xact_rollback,
+        blks_read,
+        blks_hit,
+        temp_files,
+        temp_bytes,
+        deadlocks,
+        conflicts,
+        stats_reset
+      FROM pg_stat_database
+      WHERE datname = current_database()
+    `;
+    const r = rows[0];
+    if (!r) {
+      return {
+        dbName: '', numBackends: 0, xactCommit: 0, xactRollback: 0,
+        blksRead: 0, blksHit: 0, cacheHitRatio: 1, tempFiles: 0,
+        tempBytes: 0, deadlocks: 0, conflictsTotal: 0, statsResetAt: null,
+      };
+    }
+    const blksRead = Number(r.blks_read);
+    const blksHit  = Number(r.blks_hit);
+    return {
+      dbName:         r.datname,
+      numBackends:    r.numbackends,
+      xactCommit:     Number(r.xact_commit),
+      xactRollback:   Number(r.xact_rollback),
+      blksRead,
+      blksHit,
+      cacheHitRatio:  blksRead + blksHit > 0 ? blksHit / (blksRead + blksHit) : 1,
+      tempFiles:      Number(r.temp_files),
+      tempBytes:      Number(r.temp_bytes),
+      deadlocks:      Number(r.deadlocks),
+      conflictsTotal: Number(r.conflicts),
+      statsResetAt:   r.stats_reset ? r.stats_reset.toISOString() : null,
+    };
+  }
+
   /**
    * #285b — Table sizes: total on-disk size (table + indexes + TOAST) per table,
    * ordered largest first.  Useful for capacity planning and spotting unexpected growth.
