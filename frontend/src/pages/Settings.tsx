@@ -1,11 +1,8 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, Check } from 'lucide-react';
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
-  const { theme, toggleTheme } = useTheme();
-  const [languageLoading, setLanguageLoading] = useState(false);
 
   const languages = [
     { code: 'en', name: t('settings.languageEnglish'), nativeName: 'English' },
@@ -97,6 +94,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

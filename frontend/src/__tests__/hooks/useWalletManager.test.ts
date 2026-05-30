@@ -1,7 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useWalletManager } from '../../hooks/useWalletManager';
-import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
 
 const mockSetWallet = vi.fn();
 const mockGetAddress = vi.fn();

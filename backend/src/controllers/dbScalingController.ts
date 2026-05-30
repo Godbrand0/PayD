@@ -242,6 +242,64 @@ export class DbScalingController {
     }
   }
 
+  // ── Part 41 (#286) ─────────────────────────────────────────────────────
+
+  /** #286a — Background writer and checkpoint statistics. */
+  async getBgwriterStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getBgwriterStats();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch bgwriter stats');
+      next(err);
+    }
+  }
+
+  /** #286b — Database-level statistics (transactions, cache hit ratio, deadlocks, temp files). */
+  async getDatabaseStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await service.getDatabaseStats();
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch database stats');
+      next(err);
+    }
+  }
+
+  // ── Part 49 (#294) ─────────────────────────────────────────────────────
+
+  /** #294a — Per-table I/O stats (heap, index, TOAST blocks read vs hit). */
+  async getTableIoStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const limit = Math.min(Number(req.query['limit'] ?? 30), 100);
+      if (isNaN(limit) || limit < 1) {
+        res.status(400).json({ success: false, error: 'limit must be a positive integer' });
+        return;
+      }
+      const data = await service.getTableIoStats(limit);
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch table I/O stats');
+      next(err);
+    }
+  }
+
+  /** #294b — Per-index access stats (scan count, rows read/fetched). */
+  async getIndexUsageStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const limit = Math.min(Number(req.query['limit'] ?? 30), 100);
+      if (isNaN(limit) || limit < 1) {
+        res.status(400).json({ success: false, error: 'limit must be a positive integer' });
+        return;
+      }
+      const data = await service.getIndexUsageStats(limit);
+      res.json({ success: true, data });
+    } catch (err) {
+      logger.error({ err }, 'Failed to fetch index usage stats');
+      next(err);
+    }
+  }
+
   /** #285b — Per-table disk usage (table + indexes + TOAST). */
   async getTableSizes(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

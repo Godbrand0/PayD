@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, User, Mail, Phone, MapPin, Briefcase, CreditCard } from 'lucide-react';
+import { X, User, Mail, Phone, Briefcase, CreditCard } from 'lucide-react';
 import { FormField } from './FormField';
 
 export interface EmployeeProfileData {

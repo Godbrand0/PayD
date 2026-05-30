@@ -366,4 +366,110 @@ router.get('/replication-lag', (req, res, next) => ctrl.getReplicationLag(req, r
  */
 router.get('/table-sizes', (req, res, next) => ctrl.getTableSizes(req, res, next));
 
+// ── Part 41 (#286) ──────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/bgwriter-stats:
+ *   get:
+ *     summary: Background writer and checkpoint activity statistics (Part 41)
+ *     description: >
+ *       Returns a single-row snapshot from pg_stat_bgwriter covering checkpoint
+ *       frequency (timed vs requested), buffer write counts per writer, backend
+ *       fsync calls, and checkpoint I/O durations. Useful for tuning
+ *       checkpoint_completion_target and bgwriter_lru_maxpages.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: BGWriter stats snapshot
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/bgwriter-stats', (req, res, next) => ctrl.getBgwriterStats(req, res, next));
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/database-stats:
+ *   get:
+ *     summary: Database-level statistics for the current database (Part 41)
+ *     description: >
+ *       Returns a snapshot from pg_stat_database for the active database,
+ *       including transaction throughput (commits/rollbacks), overall buffer
+ *       cache hit ratio, temporary file usage, deadlock count, and conflict
+ *       count since the last stats reset.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Database-level stats snapshot
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/database-stats', (req, res, next) => ctrl.getDatabaseStats(req, res, next));
+
+// ── Part 49 (#294) ──────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/table-io-stats:
+ *   get:
+ *     summary: Per-table I/O statistics from pg_statio_user_tables (Part 49)
+ *     description: >
+ *       Returns heap, index, and TOAST block read/hit counts per table ordered
+ *       by total disk reads descending.  The computed heapCacheHitRatio reveals
+ *       tables that are cache-cold and driving physical I/O.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *           maximum: 100
+ *         description: Maximum number of tables to return
+ *     responses:
+ *       200:
+ *         description: Per-table I/O snapshot
+ *       400:
+ *         description: Invalid limit parameter
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/table-io-stats', (req, res, next) => ctrl.getTableIoStats(req, res, next));
+
+/**
+ * @swagger
+ * /api/v1/db-scaling/index-usage-stats:
+ *   get:
+ *     summary: Per-index access statistics from pg_stat_user_indexes (Part 49)
+ *     description: >
+ *       Returns scan count, rows read, and rows fetched per index ordered by
+ *       scan frequency descending.  Indexes with zero idx_scan are candidates
+ *       for removal; hot indexes with high idx_tup_read inform cache sizing.
+ *     tags: [DB Scaling]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *           maximum: 100
+ *         description: Maximum number of indexes to return
+ *     responses:
+ *       200:
+ *         description: Per-index usage snapshot
+ *       400:
+ *         description: Invalid limit parameter
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/index-usage-stats', (req, res, next) => ctrl.getIndexUsageStats(req, res, next));
+
 export default router;

@@ -23,7 +23,6 @@ import type {
   ContractEvent,
 } from '../types/transactionHistory';
 import axiosInstance from '../api/axiosInstance';
-import { AxiosError } from 'axios';
 
 // ============================================================================
 // Configuration
@@ -41,12 +40,7 @@ import { AxiosError } from 'axios';
  */
 export function categorizeError(error: unknown): ErrorState {
   // Network errors (fetch failures, timeouts, DNS issues)
-  if (
-    error instanceof TypeError ||
-    (error as any).name === 'TypeError' ||
-    (error instanceof Error && error.message?.includes('fetch')) ||
-    (error as any).message?.includes('fetch')
-  ) {
+  if (error instanceof TypeError || (error instanceof Error && error.message?.includes('fetch'))) {
     return {
       type: 'network',
       message: 'Unable to connect. Please check your internet connection.',
@@ -128,7 +122,7 @@ export async function fetchAuditRecords(
 
     return response.data;
   } catch (error) {
-    if ((error as any).name === 'CanceledError') {
+    if (error instanceof Error && error.name === 'CanceledError') {
       throw new Error('The operation was aborted.');
     }
 
@@ -174,7 +168,7 @@ export async function fetchContractEvents(
 
     return response.data;
   } catch (error) {
-    if ((error as any).name === 'CanceledError') {
+    if (error instanceof Error && error.name === 'CanceledError') {
       throw new Error('The operation was aborted.');
     }
 

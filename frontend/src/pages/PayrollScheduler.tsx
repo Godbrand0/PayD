@@ -13,7 +13,6 @@ import { AutosaveIndicator } from '../components/AutosaveIndicator';
 import { BulkPaymentStatusTracker } from '../components/BulkPaymentStatusTracker';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { FormField } from '../components/FormField';
-import { SchedulingWizard } from '../components/SchedulingWizard';
 import { PayrollScheduleForm } from '../components/payroll/PayrollScheduleForm';
 import { TransactionSimulationPanel } from '../components/TransactionSimulationPanel';
 import { useAutosave } from '../hooks/useAutosave';
@@ -143,20 +142,6 @@ export default function PayrollScheduler() {
       // Ignore invalid local storage payloads.
     }
   }, []);
-
-  const handleScheduleComplete = (config: SchedulingConfig) => {
-    setActiveSchedule(config);
-    setIsWizardOpen(false);
-    notifySuccess(
-      'Payroll schedule configured!',
-      `Frequency: ${config.frequency}, time: ${config.timeOfDay}`
-    );
-
-    // Persist config so the countdown survives refresh.
-    localStorage.setItem(scheduleStorageKey, JSON.stringify(config));
-
-    setNextRunDate(computeNextRunDate(config, new Date()));
-  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
