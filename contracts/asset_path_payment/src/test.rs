@@ -2,7 +2,7 @@
 
 use super::*;
 use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{token, Env, String};
+use soroban_sdk::{Env, String, token};
 
 fn create_token_contract(env: &Env, admin: &Address) -> Address {
     env.register_stellar_asset_contract_v2(admin.clone())
@@ -177,7 +177,16 @@ fn test_initiate_path_payment_escrows_tokens() {
 
     let tc = token::Client::new(&env, &source);
 
-    client.initiate_path_payment(&from, &to, &source, &dest, &300, &270, &300, &Vec::new(&env));
+    client.initiate_path_payment(
+        &from,
+        &to,
+        &source,
+        &dest,
+        &300,
+        &270,
+        &300,
+        &Vec::new(&env),
+    );
 
     assert_eq!(tc.balance(&contract_id), 300);
     assert_eq!(tc.balance(&from), 4700);
@@ -250,7 +259,14 @@ fn test_fail_path_payment_success() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
 
     let msg = String::from_str(&env, "No liquidity on path");
@@ -292,7 +308,14 @@ fn test_complete_path_payment_rejects_non_pending() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
 
     // Complete it once
@@ -321,7 +344,14 @@ fn test_complete_path_payment_slippage_rejection() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &190, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &190,
+        &200,
+        &Vec::new(&env),
     );
 
     // actual_dest_amount < dest_min_amount should fail with slippage
@@ -347,7 +377,14 @@ fn test_fail_path_payment_with_partial_failure_flag() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
 
     let msg = String::from_str(&env, "Partial execution");
@@ -367,12 +404,8 @@ fn test_fail_path_payment_rejects_unknown_payment() {
     let client = AssetPathPaymentContractClient::new(&env, &contract_id);
 
     let msg = String::from_str(&env, "Not found");
-    let result = client.try_fail_path_payment(
-        &999,
-        &(PathPaymentError::PathNotFound as u32),
-        &msg,
-        &false,
-    );
+    let result =
+        client.try_fail_path_payment(&999, &(PathPaymentError::PathNotFound as u32), &msg, &false);
     assert_eq!(result, Err(Ok(PathPaymentError::PaymentNotFound)));
 }
 
@@ -394,7 +427,14 @@ fn test_fail_path_payment_rejects_non_pending() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
 
     // Fail it
@@ -450,7 +490,14 @@ fn test_withdraw_success() {
 
     // Send tokens to contract via path payment
     client.initiate_path_payment(
-        &from, &to, &source, &dest, &300, &270, &300, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &300,
+        &270,
+        &300,
+        &Vec::new(&env),
     );
 
     let tc = token::Client::new(&env, &source);
@@ -484,9 +531,8 @@ fn test_path_payment_initiated_event() {
     let client = AssetPathPaymentContractClient::new(&env, &contract_id);
     client.init(&admin);
 
-    let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &100, &90, &100, &Vec::new(&env),
-    );
+    let id =
+        client.initiate_path_payment(&from, &to, &source, &dest, &100, &90, &100, &Vec::new(&env));
     assert_eq!(id, 1);
 }
 
@@ -508,7 +554,14 @@ fn test_path_payment_completed_event() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
 
     client.complete_path_payment(&id, &195, &190);
@@ -535,7 +588,14 @@ fn test_path_payment_failed_event() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
 
     let msg = String::from_str(&env, "Liquidity vanished");
@@ -564,7 +624,14 @@ fn test_complete_slippage_emits_failed_event() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &190, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &190,
+        &200,
+        &Vec::new(&env),
     );
 
     let result = client.try_complete_path_payment(&id, &195, &100);
@@ -594,9 +661,7 @@ fn test_full_lifecycle_complete() {
 
     // Initiate
     let path = Vec::from_array(&env, [dest.clone()]);
-    let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &500, &480, &500, &path,
-    );
+    let id = client.initiate_path_payment(&from, &to, &source, &dest, &500, &480, &500, &path);
     assert_eq!(client.get_payment_count(), 1);
 
     let record = client.get_payment(&id).unwrap();
@@ -628,17 +693,19 @@ fn test_full_lifecycle_fail() {
     client.init(&admin);
 
     let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &300, &280, &300, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &300,
+        &280,
+        &300,
+        &Vec::new(&env),
     );
     assert_eq!(client.get_payment_count(), 1);
 
     let msg = String::from_str(&env, "Path execution failed");
-    client.fail_path_payment(
-        &id,
-        &(PathPaymentError::PathNotFound as u32),
-        &msg,
-        &false,
-    );
+    client.fail_path_payment(&id, &(PathPaymentError::PathNotFound as u32), &msg, &false);
 
     let record = client.get_payment(&id).unwrap();
     assert_eq!(record.status, symbol_short!("failed"));
@@ -667,16 +734,29 @@ fn test_multiple_payments_independent_lifecycle() {
     client.init(&admin);
 
     // Payment 1: Complete
-    let id1 = client.initiate_path_payment(
-        &from, &to, &source, &dest, &100, &90, &100, &Vec::new(&env),
-    );
+    let id1 =
+        client.initiate_path_payment(&from, &to, &source, &dest, &100, &90, &100, &Vec::new(&env));
     // Payment 2: Fail
     let id2 = client.initiate_path_payment(
-        &from, &to, &source, &dest, &200, &180, &200, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &200,
+        &180,
+        &200,
+        &Vec::new(&env),
     );
     // Payment 3: Complete
     let id3 = client.initiate_path_payment(
-        &from, &to, &source, &dest, &300, &270, &300, &Vec::new(&env),
+        &from,
+        &to,
+        &source,
+        &dest,
+        &300,
+        &270,
+        &300,
+        &Vec::new(&env),
     );
 
     client.complete_path_payment(&id1, &95, &92);
@@ -684,9 +764,18 @@ fn test_multiple_payments_independent_lifecycle() {
     client.fail_path_payment(&id2, &1, &msg, &false);
     client.complete_path_payment(&id3, &295, &285);
 
-    assert_eq!(client.get_payment(&id1).unwrap().status, symbol_short!("completed"));
-    assert_eq!(client.get_payment(&id2).unwrap().status, symbol_short!("failed"));
-    assert_eq!(client.get_payment(&id3).unwrap().status, symbol_short!("completed"));
+    assert_eq!(
+        client.get_payment(&id1).unwrap().status,
+        symbol_short!("completed")
+    );
+    assert_eq!(
+        client.get_payment(&id2).unwrap().status,
+        symbol_short!("failed")
+    );
+    assert_eq!(
+        client.get_payment(&id3).unwrap().status,
+        symbol_short!("completed")
+    );
 }
 
 #[test]
@@ -706,9 +795,8 @@ fn test_empty_path_initiation() {
     let client = AssetPathPaymentContractClient::new(&env, &contract_id);
     client.init(&admin);
 
-    let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &100, &90, &100, &Vec::new(&env),
-    );
+    let id =
+        client.initiate_path_payment(&from, &to, &source, &dest, &100, &90, &100, &Vec::new(&env));
 
     let record = client.get_payment(&id).unwrap();
     assert_eq!(record.path.len(), 0);
@@ -735,9 +823,7 @@ fn test_populated_path_initiation() {
     client.init(&admin);
 
     let path = Vec::from_array(&env, [hop1.clone(), hop2.clone()]);
-    let id = client.initiate_path_payment(
-        &from, &to, &source, &dest, &100, &90, &100, &path,
-    );
+    let id = client.initiate_path_payment(&from, &to, &source, &dest, &100, &90, &100, &path);
 
     let record = client.get_payment(&id).unwrap();
     assert_eq!(record.path.len(), 2);
@@ -749,7 +835,16 @@ fn test_sep0034_metadata() {
     let contract_id = env.register(AssetPathPaymentContract, ());
     let client = AssetPathPaymentContractClient::new(&env, &contract_id);
 
-    assert_eq!(client.name(), String::from_str(&env, env!("CARGO_PKG_NAME")));
-    assert_eq!(client.version(), String::from_str(&env, env!("CARGO_PKG_VERSION")));
-    assert_eq!(client.author(), String::from_str(&env, env!("CARGO_PKG_AUTHORS")));
+    assert_eq!(
+        client.name(),
+        String::from_str(&env, env!("CARGO_PKG_NAME"))
+    );
+    assert_eq!(
+        client.version(),
+        String::from_str(&env, env!("CARGO_PKG_VERSION"))
+    );
+    assert_eq!(
+        client.author(),
+        String::from_str(&env, env!("CARGO_PKG_AUTHORS"))
+    );
 }

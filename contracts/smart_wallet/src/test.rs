@@ -1,6 +1,8 @@
 #![cfg(test)]
 
-use crate::{SignatureProof, SignerKey, SmartWalletContract, SmartWalletContractClient, WalletError};
+use crate::{
+    SignatureProof, SignerKey, SmartWalletContract, SmartWalletContractClient, WalletError,
+};
 use core::convert::TryInto;
 use ed25519_dalek::{Signer as _, SigningKey as Ed25519SigningKey};
 use k256::ecdsa::SigningKey as SecpSigningKey;

@@ -11,22 +11,22 @@ const PERSISTENT_TTL_EXTEND_TO: u32 = 120_000;
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum ContractError {
-    AlreadyInitialized           = 1,
-    NotInitialized               = 2,
-    Unauthorized                 = 3,
-    InvalidAmount                = 4,
-    EscrowNotFound               = 5,
-    EscrowInactive               = 6,
-    MilestoneNotFound            = 7,
-    MilestoneAlreadyApproved     = 8,
-    MilestoneNotApproved         = 9,
-    InvalidMilestones            = 10,
-    ContractPaused               = 11,
-    LedgerReplayDetected         = 12,
-    SameAdmin                    = 13,
-    NotVerifier                  = 14,
-    InsufficientFunds            = 15,
-    InsufficientEscrowBalance    = 16,
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    InvalidAmount = 4,
+    EscrowNotFound = 5,
+    EscrowInactive = 6,
+    MilestoneNotFound = 7,
+    MilestoneAlreadyApproved = 8,
+    MilestoneNotApproved = 9,
+    InvalidMilestones = 10,
+    ContractPaused = 11,
+    LedgerReplayDetected = 12,
+    SameAdmin = 13,
+    NotVerifier = 14,
+    InsufficientFunds = 15,
+    InsufficientEscrowBalance = 16,
 }
 
 #[contracttype]
@@ -156,9 +156,11 @@ impl MilestoneEscrowContract {
             .ok_or(ContractError::NotInitialized)?;
         admin.require_auth();
 
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Admin, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Admin,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
 
         if admin == new_admin {
             return Err(ContractError::SameAdmin);
@@ -186,11 +188,7 @@ impl MilestoneEscrowContract {
 
         env.storage().instance().set(&DataKey::Paused, &paused);
 
-        ContractStatusChangedEvent {
-            paused,
-            admin,
-        }
-        .publish(&env);
+        ContractStatusChangedEvent { paused, admin }.publish(&env);
         Ok(())
     }
 
@@ -244,15 +242,19 @@ impl MilestoneEscrowContract {
             .persistent()
             .get(&DataKey::EscrowCount)
             .unwrap_or(0);
-        escrow_count = escrow_count.checked_add(1).ok_or(ContractError::InvalidAmount)?;
+        escrow_count = escrow_count
+            .checked_add(1)
+            .ok_or(ContractError::InvalidAmount)?;
 
         let escrow_id = escrow_count;
         e.storage()
             .persistent()
             .set(&DataKey::EscrowCount, &escrow_count);
-        e.storage()
-            .persistent()
-            .extend_ttl(&DataKey::EscrowCount, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+        e.storage().persistent().extend_ttl(
+            &DataKey::EscrowCount,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
 
         let token_client = token::Client::new(&e, &token);
         token_client.transfer(&sender, e.current_contract_address(), &total_amount);
@@ -269,7 +271,9 @@ impl MilestoneEscrowContract {
             created_at: e.ledger().timestamp(),
         };
 
-        e.storage().persistent().set(&DataKey::Escrow(escrow_id), &record);
+        e.storage()
+            .persistent()
+            .set(&DataKey::Escrow(escrow_id), &record);
         Self::bump_escrow_ttl(&e, escrow_id);
 
         EscrowCreatedEvent {
@@ -320,9 +324,7 @@ impl MilestoneEscrowContract {
         }
 
         milestone.status = MilestoneStatus::Approved;
-        record
-            .milestones
-            .set(milestone_index, milestone.clone());
+        record.milestones.set(milestone_index, milestone.clone());
 
         e.storage()
             .persistent()
@@ -383,9 +385,7 @@ impl MilestoneEscrowContract {
         }
 
         milestone.status = MilestoneStatus::Released;
-        record
-            .milestones
-            .set(milestone_index, milestone.clone());
+        record.milestones.set(milestone_index, milestone.clone());
 
         record.released_amount = record
             .released_amount
@@ -485,10 +485,7 @@ impl MilestoneEscrowContract {
         Ok(())
     }
 
-    pub fn get_escrow(
-        e: Env,
-        escrow_id: u64,
-    ) -> Result<EscrowRecord, ContractError> {
+    pub fn get_escrow(e: Env, escrow_id: u64) -> Result<EscrowRecord, ContractError> {
         e.storage()
             .persistent()
             .get(&DataKey::Escrow(escrow_id))
@@ -502,10 +499,7 @@ impl MilestoneEscrowContract {
             .unwrap_or(0)
     }
 
-    pub fn get_releasable_amount(
-        e: Env,
-        escrow_id: u64,
-    ) -> Result<i128, ContractError> {
+    pub fn get_releasable_amount(e: Env, escrow_id: u64) -> Result<i128, ContractError> {
         let record: EscrowRecord = e
             .storage()
             .persistent()
@@ -546,9 +540,11 @@ impl MilestoneEscrowContract {
             return Err(ContractError::LedgerReplayDetected);
         }
         e.storage().persistent().set(key, &current_ledger);
-        e.storage()
-            .persistent()
-            .extend_ttl(key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+        e.storage().persistent().extend_ttl(
+            key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
         Ok(())
     }
 

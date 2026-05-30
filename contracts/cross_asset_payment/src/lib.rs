@@ -1,8 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, symbol_short, token,
-    Address, Env, String, Symbol,
+    Address, Env, String, Symbol, contract, contracterror, contractevent, contractimpl,
+    contracttype, symbol_short, token,
 };
 
 /// Emitted when the current admin proposes a new admin (two-step transfer).
@@ -184,9 +184,7 @@ impl CrossAssetPaymentContract {
             .get(&DataKey::Admin)
             .expect("Not initialized");
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Admin, &new_admin);
+        env.storage().persistent().set(&DataKey::Admin, &new_admin);
         env.storage().persistent().remove(&DataKey::PendingAdmin);
         Self::bump_core_ttl(&env);
 
@@ -336,7 +334,11 @@ impl CrossAssetPaymentContract {
         Self::require_pending_status(&record)?;
 
         let token_client = token::Client::new(&env, &record.asset);
-        token_client.transfer(&env.current_contract_address(), &record.from, &record.amount);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &record.from,
+            &record.amount,
+        );
 
         record.status = symbol_short!("failed");
         Self::store_payment(&env, payment_id, &record);
@@ -412,29 +414,22 @@ impl CrossAssetPaymentContract {
         count
     }
 
-    fn load_payment(
-        env: &Env,
-        payment_id: u64,
-    ) -> Result<PaymentRecord, CrossAssetPaymentError> {
+    fn load_payment(env: &Env, payment_id: u64) -> Result<PaymentRecord, CrossAssetPaymentError> {
         let key = DataKey::Payment(payment_id);
         let record: Option<PaymentRecord> = env.storage().persistent().get(&key);
         let record = record.ok_or(CrossAssetPaymentError::PaymentNotFound)?;
-        env.storage().persistent().extend_ttl(
-            &key,
-            PAYMENT_TTL_THRESHOLD,
-            PAYMENT_TTL_EXTEND_TO,
-        );
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, PAYMENT_TTL_THRESHOLD, PAYMENT_TTL_EXTEND_TO);
         Ok(record)
     }
 
     fn store_payment(env: &Env, payment_id: u64, record: &PaymentRecord) {
         let key = DataKey::Payment(payment_id);
         env.storage().persistent().set(&key, record);
-        env.storage().persistent().extend_ttl(
-            &key,
-            PAYMENT_TTL_THRESHOLD,
-            PAYMENT_TTL_EXTEND_TO,
-        );
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, PAYMENT_TTL_THRESHOLD, PAYMENT_TTL_EXTEND_TO);
     }
 
     fn require_pending_status(record: &PaymentRecord) -> Result<(), CrossAssetPaymentError> {
@@ -493,10 +488,7 @@ impl CrossAssetPaymentContract {
         admin.require_auth();
     }
 
-    fn require_matching_admin(
-        env: &Env,
-        admin: &Address,
-    ) -> Result<(), CrossAssetPaymentError> {
+    fn require_matching_admin(env: &Env, admin: &Address) -> Result<(), CrossAssetPaymentError> {
         let stored_admin: Address = env
             .storage()
             .persistent()
@@ -509,10 +501,7 @@ impl CrossAssetPaymentContract {
         Ok(())
     }
 
-    fn require_unique_ledger(
-        env: &Env,
-        sender: &Address,
-    ) -> Result<(), CrossAssetPaymentError> {
+    fn require_unique_ledger(env: &Env, sender: &Address) -> Result<(), CrossAssetPaymentError> {
         let current_ledger = env.ledger().sequence();
         let key = DataKey::LastPaymentLedger(sender.clone());
         let last_ledger: u32 = env.storage().persistent().get(&key).unwrap_or(0);

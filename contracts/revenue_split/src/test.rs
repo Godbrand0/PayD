@@ -1,16 +1,21 @@
 #![cfg(test)]
 
-use crate::{RevenueSplitContract, RevenueSplitContractClient, RecipientShare, RevenueSplitError};
-use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env, Vec};
+use crate::{RecipientShare, RevenueSplitContract, RevenueSplitContractClient, RevenueSplitError};
 use soroban_sdk::token::Client as TokenClient;
 use soroban_sdk::token::StellarAssetClient;
+use soroban_sdk::{
+    Address, Env, Vec,
+    testutils::{Address as _, Ledger},
+};
 
 fn create_token_contract<'a>(
     e: &Env,
     admin: &Address,
 ) -> (Address, StellarAssetClient<'a>, TokenClient<'a>) {
     e.mock_all_auths();
-    let contract_id = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let contract_id = e
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let stellar_asset_client = StellarAssetClient::new(e, &contract_id);
     let token_client = TokenClient::new(e, &contract_id);
     (contract_id, stellar_asset_client, token_client)
@@ -30,10 +35,19 @@ fn test_initialization() {
     let recipient1 = Address::generate(&env);
     let recipient2 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 6000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 4000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 6000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 4000,
+            },
+        ],
+    );
 
     let result = client.try_init(&admin, &shares);
     assert_eq!(result, Ok(Ok(())));
@@ -48,9 +62,13 @@ fn test_init_invalid_shares_sum() {
     let admin = Address::generate(&env);
     let recipient1 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 5000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient1.clone(),
+            basis_points: 5000,
+        }],
+    );
 
     let result = client.try_init(&admin, &shares);
     assert_eq!(result, Err(Ok(RevenueSplitError::BasisPointsSumMismatch)));
@@ -65,10 +83,19 @@ fn test_init_duplicate_recipient() {
     let admin = Address::generate(&env);
     let recipient = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 5000 },
-        RecipientShare { destination: recipient, basis_points: 5000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient.clone(),
+                basis_points: 5000,
+            },
+            RecipientShare {
+                destination: recipient,
+                basis_points: 5000,
+            },
+        ],
+    );
 
     let result = client.try_init(&admin, &shares);
     assert_eq!(result, Err(Ok(RevenueSplitError::DuplicateRecipient)));
@@ -85,9 +112,13 @@ fn test_double_init() {
     let admin = Address::generate(&env);
     let recipient = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10000,
+        }],
+    );
 
     client.init(&admin, &shares);
     let result = client.try_init(&admin, &shares);
@@ -114,11 +145,23 @@ fn test_distribution() {
     let recipient2 = Address::generate(&env);
     let recipient3 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 5000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 3000 },
-        RecipientShare { destination: recipient3.clone(), basis_points: 2000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 5000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 3000,
+            },
+            RecipientShare {
+                destination: recipient3.clone(),
+                basis_points: 2000,
+            },
+        ],
+    );
 
     contract_client.init(&admin, &shares);
 
@@ -144,16 +187,29 @@ fn test_update_recipients() {
     let admin = Address::generate(&env);
     let recipient1 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient1.clone(),
+            basis_points: 10000,
+        }],
+    );
     client.init(&admin, &shares);
 
     let recipient2 = Address::generate(&env);
-    let new_shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 5000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 5000 },
-    ]);
+    let new_shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 5000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 5000,
+            },
+        ],
+    );
 
     client.update_recipients(&new_shares);
 }
@@ -169,16 +225,29 @@ fn test_update_recipients_rejects_zero_share() {
     let admin = Address::generate(&env);
     let recipient1 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient1.clone(),
+            basis_points: 10000,
+        }],
+    );
     client.init(&admin, &shares);
 
     let recipient2 = Address::generate(&env);
-    let new_shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1, basis_points: 10000 },
-        RecipientShare { destination: recipient2, basis_points: 0 },
-    ]);
+    let new_shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1,
+                basis_points: 10000,
+            },
+            RecipientShare {
+                destination: recipient2,
+                basis_points: 0,
+            },
+        ],
+    );
 
     let result = client.try_update_recipients(&new_shares);
     assert_eq!(result, Err(Ok(RevenueSplitError::ZeroBasisPoints)));
@@ -195,9 +264,13 @@ fn test_set_admin() {
     let new_admin = Address::generate(&env);
     let recipient = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10000,
+        }],
+    );
 
     client.init(&admin, &shares);
     client.set_admin(&new_admin);
@@ -223,9 +296,13 @@ fn test_distribute_replay_same_ledger() {
     let admin = Address::generate(&env);
     let recipient = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10000,
+        }],
+    );
 
     client.init(&admin, &shares);
 
@@ -264,8 +341,7 @@ fn test_distribute_allowed_different_ledgers() {
     env.ledger().set_sequence_number(50);
 
     let token_admin = Address::generate(&env);
-    let (token_id, stellar_asset_client, token_client) =
-        create_token_contract(&env, &token_admin);
+    let (token_id, stellar_asset_client, token_client) = create_token_contract(&env, &token_admin);
 
     let contract_id = env.register(RevenueSplitContract, ());
     let contract_client = RevenueSplitContractClient::new(&env, &contract_id);
@@ -274,10 +350,19 @@ fn test_distribute_allowed_different_ledgers() {
     let recipient1 = Address::generate(&env);
     let recipient2 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 3333 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 6667 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 3333,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 6667,
+            },
+        ],
+    );
 
     contract_client.init(&admin, &shares);
 
@@ -303,16 +388,29 @@ fn test_update_recipients_invalid_sum() {
     let admin = Address::generate(&env);
     let recipient1 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient1.clone(),
+            basis_points: 10000,
+        }],
+    );
     client.init(&admin, &shares);
 
     let recipient2 = Address::generate(&env);
-    let bad_shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 4000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 5000 },
-    ]);
+    let bad_shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 4000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 5000,
+            },
+        ],
+    );
     let result = client.try_update_recipients(&bad_shares);
     assert_eq!(result, Err(Ok(RevenueSplitError::BasisPointsSumMismatch)));
 }
@@ -324,17 +422,20 @@ fn test_distribute_updates_ledger_state() {
     env.ledger().set_sequence_number(50);
 
     let token_admin = Address::generate(&env);
-    let (token_id, stellar_asset_client, token_client) =
-        create_token_contract(&env, &token_admin);
+    let (token_id, stellar_asset_client, token_client) = create_token_contract(&env, &token_admin);
 
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
     let admin = Address::generate(&env);
     let recipient = Address::generate(&env);
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10000,
+        }],
+    );
     client.init(&admin, &shares);
 
     let sender = Address::generate(&env);
@@ -361,10 +462,19 @@ fn test_get_recipients_returns_current_configuration() {
     let recipient1 = Address::generate(&env);
     let recipient2 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 7000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 3000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 7000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 3000,
+            },
+        ],
+    );
 
     client.init(&admin, &shares);
 
@@ -384,10 +494,19 @@ fn test_preview_distribution_preserves_remainder_on_last_recipient() {
     let recipient1 = Address::generate(&env);
     let recipient2 = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 3333 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 6667 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 3333,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 6667,
+            },
+        ],
+    );
 
     client.init(&admin, &shares);
 
@@ -411,17 +530,25 @@ fn test_total_distributed_accumulates_across_calls() {
     let recipient1 = Address::generate(&env);
     let recipient2 = Address::generate(&env);
 
-    let (token_contract, token_admin_client, token_client) =
-        create_token_contract(&env, &admin);
+    let (token_contract, token_admin_client, token_client) = create_token_contract(&env, &admin);
     token_admin_client.mint(&sender, &100_000);
 
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 5000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 5000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 5000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 5000,
+            },
+        ],
+    );
     client.init(&admin, &shares);
 
     env.ledger().set_sequence_number(1);
@@ -447,12 +574,13 @@ fn test_total_distributed_starts_at_zero() {
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare {
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
             destination: Address::generate(&env),
             basis_points: 10_000,
-        },
-    ]);
+        }],
+    );
     client.init(&admin, &shares);
 
     assert_eq!(client.get_total_distributed(&token_contract), 0);
@@ -462,8 +590,14 @@ fn test_total_distributed_starts_at_zero() {
 // ── CIRCUIT BREAKER TESTS (Issue #191 / Part 46) ─────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
-fn setup_with_token(
-) -> (Env, RevenueSplitContractClient<'static>, Address, Address, Address, Address) {
+fn setup_with_token() -> (
+    Env,
+    RevenueSplitContractClient<'static>,
+    Address,
+    Address,
+    Address,
+    Address,
+) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -475,10 +609,19 @@ fn setup_with_token(
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient1.clone(), basis_points: 6000 },
-        RecipientShare { destination: recipient2.clone(), basis_points: 4000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1.clone(),
+                basis_points: 6000,
+            },
+            RecipientShare {
+                destination: recipient2.clone(),
+                basis_points: 4000,
+            },
+        ],
+    );
     client.init(&admin, &shares);
 
     (env, client, admin, sender, recipient1, recipient2)
@@ -521,9 +664,13 @@ fn test_distribute_blocked_when_paused() {
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10_000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10_000,
+        }],
+    );
     client.init(&admin, &shares);
     client.set_paused(&true);
 
@@ -548,9 +695,13 @@ fn test_distribute_succeeds_after_unpause() {
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10_000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10_000,
+        }],
+    );
     client.init(&admin, &shares);
     client.set_paused(&true);
     client.set_paused(&false);
@@ -575,9 +726,13 @@ fn test_distribution_count_increments() {
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10_000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10_000,
+        }],
+    );
     client.init(&admin, &shares);
     assert_eq!(client.get_distribution_count(), 0);
 
@@ -607,16 +762,32 @@ fn test_update_recipients_emits_event_and_stores_new_config() {
     let r2 = Address::generate(&env);
     let r3 = Address::generate(&env);
 
-    let initial = Vec::from_array(&env, [
-        RecipientShare { destination: r1.clone(), basis_points: 10_000 },
-    ]);
+    let initial = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: r1.clone(),
+            basis_points: 10_000,
+        }],
+    );
     client.init(&admin, &initial);
 
-    let updated = Vec::from_array(&env, [
-        RecipientShare { destination: r1.clone(), basis_points: 4000 },
-        RecipientShare { destination: r2.clone(), basis_points: 3000 },
-        RecipientShare { destination: r3.clone(), basis_points: 3000 },
-    ]);
+    let updated = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: r1.clone(),
+                basis_points: 4000,
+            },
+            RecipientShare {
+                destination: r2.clone(),
+                basis_points: 3000,
+            },
+            RecipientShare {
+                destination: r3.clone(),
+                basis_points: 3000,
+            },
+        ],
+    );
     client.update_recipients(&updated);
 
     let stored = client.get_recipients();
@@ -635,9 +806,13 @@ fn test_set_admin_updates_stored_admin() {
     let new_admin = Address::generate(&env);
     let recipient = Address::generate(&env);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10_000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10_000,
+        }],
+    );
     client.init(&admin, &shares);
     client.set_admin(&new_admin);
 
@@ -661,9 +836,13 @@ fn test_distribute_noop_on_zero_amount() {
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
 
-    let shares = Vec::from_array(&env, [
-        RecipientShare { destination: recipient.clone(), basis_points: 10_000 },
-    ]);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10_000,
+        }],
+    );
     client.init(&admin, &shares);
 
     // Zero-amount distribute is a no-op: no transfer, no ledger update

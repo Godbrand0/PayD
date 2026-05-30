@@ -1,7 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractevent, contractimpl, contracttype, contracterror, token, Address, Env, String, Vec,
+    Address, Env, String, Vec, contract, contracterror, contractevent, contractimpl, contracttype,
+    token,
 };
 
 #[cfg(test)]
@@ -196,11 +197,7 @@ impl RevenueSplitContract {
 
         env.storage().instance().set(&DataKey::Paused, &paused);
 
-        PauseStateChangedEvent {
-            paused,
-            admin,
-        }
-        .publish(&env);
+        PauseStateChangedEvent { paused, admin }.publish(&env);
     }
 
     /// Returns `true` if the contract is currently paused.
@@ -231,7 +228,12 @@ impl RevenueSplitContract {
     /// - `from` must authorize the transaction.
     /// - Contract must not be paused (circuit breaker).
     /// - Must be the only distribution in this ledger (replay protection).
-    pub fn distribute(env: Env, token: Address, from: Address, amount: i128) -> Result<(), RevenueSplitError> {
+    pub fn distribute(
+        env: Env,
+        token: Address,
+        from: Address,
+        amount: i128,
+    ) -> Result<(), RevenueSplitError> {
         if amount <= 0 {
             return Ok(());
         }
@@ -254,9 +256,7 @@ impl RevenueSplitContract {
         // Accumulate total distributed for this token
         let td_key = DataKey::TotalDistributed(token.clone());
         let prev: i128 = env.storage().persistent().get(&td_key).unwrap_or(0);
-        env.storage()
-            .persistent()
-            .set(&td_key, &(prev + amount));
+        env.storage().persistent().set(&td_key, &(prev + amount));
         env.storage().persistent().extend_ttl(
             &td_key,
             PERSISTENT_TTL_THRESHOLD,
@@ -470,5 +470,4 @@ impl RevenueSplitContract {
             }
         }
     }
-
 }

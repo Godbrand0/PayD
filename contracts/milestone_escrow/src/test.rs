@@ -1,9 +1,9 @@
 #![cfg(test)]
 use super::*;
 use soroban_sdk::{
+    Address, Env, String, Vec,
     testutils::{Address as _, Ledger},
     token,
-    Address, Env, String, Vec,
 };
 
 fn setup() -> (
@@ -610,16 +610,21 @@ fn test_approve_across_ledgers_succeeds() {
     client.approve_milestone(&escrow_id, &1);
 
     let record = client.get_escrow(&escrow_id);
-    assert!(matches!(record.milestones.get(0).unwrap().status, MilestoneStatus::Approved));
-    assert!(matches!(record.milestones.get(1).unwrap().status, MilestoneStatus::Approved));
+    assert!(matches!(
+        record.milestones.get(0).unwrap().status,
+        MilestoneStatus::Approved
+    ));
+    assert!(matches!(
+        record.milestones.get(1).unwrap().status,
+        MilestoneStatus::Approved
+    ));
 }
 
 #[test]
 fn test_single_milestone_escrow() {
     let (e, sender, beneficiary, verifier, token, token_client, _, client) = setup();
     let milestones = make_milestones(&e, &[5000]);
-    let escrow_id =
-        client.create_escrow(&sender, &beneficiary, &verifier, &token, &milestones);
+    let escrow_id = client.create_escrow(&sender, &beneficiary, &verifier, &token, &milestones);
 
     let record = client.get_escrow(&escrow_id);
     assert_eq!(record.total_amount, 5000);

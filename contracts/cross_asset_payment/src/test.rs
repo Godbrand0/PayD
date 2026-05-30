@@ -2,7 +2,7 @@
 
 use super::*;
 use soroban_sdk::testutils::{Address as _, Ledger};
-use soroban_sdk::{token, Address, Env, String};
+use soroban_sdk::{Address, Env, String, token};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -16,7 +16,12 @@ fn create_token(env: &Env, recipient: &Address, amount: i128) -> Address {
     token_address
 }
 
-fn setup() -> (Env, Address, Address, CrossAssetPaymentContractClient<'static>) {
+fn setup() -> (
+    Env,
+    Address,
+    Address,
+    CrossAssetPaymentContractClient<'static>,
+) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -76,13 +81,28 @@ fn test_initiate_payment_counter_increments() {
     let anchor_id = String::from_str(&env, "anc1");
 
     let id1 = client.initiate_payment(
-        &from, &100, &token_address, &receiver_id, &target_asset, &anchor_id,
+        &from,
+        &100,
+        &token_address,
+        &receiver_id,
+        &target_asset,
+        &anchor_id,
     );
     let id2 = client.initiate_payment(
-        &from, &200, &token_address, &receiver_id, &target_asset, &anchor_id,
+        &from,
+        &200,
+        &token_address,
+        &receiver_id,
+        &target_asset,
+        &anchor_id,
     );
     let id3 = client.initiate_payment(
-        &from, &300, &token_address, &receiver_id, &target_asset, &anchor_id,
+        &from,
+        &300,
+        &token_address,
+        &receiver_id,
+        &target_asset,
+        &anchor_id,
     );
 
     assert_eq!(id1, 1);
@@ -187,7 +207,10 @@ fn test_initiate_payment_replay_same_ledger() {
         &String::from_str(&env, "EUR"),
         &String::from_str(&env, "anc-2"),
     );
-    assert_eq!(result, Err(Ok(CrossAssetPaymentError::LedgerReplayDetected)));
+    assert_eq!(
+        result,
+        Err(Ok(CrossAssetPaymentError::LedgerReplayDetected))
+    );
 }
 
 #[test]
@@ -530,12 +553,17 @@ fn test_accept_admin_transfer_allows_new_admin_operations() {
     client.accept_admin_transfer(&new_admin);
 
     // New admin can perform admin-gated operations (update_status)
-    let receiver_id  = String::from_str(&env, "worker-01");
+    let receiver_id = String::from_str(&env, "worker-01");
     let target_asset = String::from_str(&env, "USDC");
-    let anchor_id    = String::from_str(&env, "anchor-1");
+    let anchor_id = String::from_str(&env, "anchor-1");
 
     let payment_id = client.initiate_payment(
-        &from, &200, &token_address, &receiver_id, &target_asset, &anchor_id,
+        &from,
+        &200,
+        &token_address,
+        &receiver_id,
+        &target_asset,
+        &anchor_id,
     );
     // update_status is admin-gated; new_admin must be able to call it
     client.update_status(&payment_id, &soroban_sdk::symbol_short!("settled"));
@@ -583,7 +611,7 @@ fn test_cancel_admin_transfer_clears_pending() {
 fn test_propose_admin_transfer_replaces_previous_proposal() {
     let (env, _admin, _contract_id, client) = setup();
 
-    let first_candidate  = Address::generate(&env);
+    let first_candidate = Address::generate(&env);
     let second_candidate = Address::generate(&env);
 
     client.propose_admin_transfer(&first_candidate);

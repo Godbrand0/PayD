@@ -2,11 +2,9 @@
 use super::*;
 use soroban_sdk::{
     testutils::Address as _,
-    testutils::AuthorizedFunction,
-    testutils::AuthorizedInvocation,
     testutils::Ledger,
     token::{Client as TokenClient, StellarAssetClient},
-    Address, Env, IntoVal, Vec,
+    Address, Env, Vec,
 };
 
 // ── Errors map ────────────────────────────────────────────────────────────────
@@ -32,7 +30,9 @@ fn setup() -> (Env, Address, Address, BulkPaymentContractClient<'static>) {
     env.mock_all_auths();
 
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let sender = Address::generate(&env);
     StellarAssetClient::new(&env, &token_id).mint(&sender, &1_000_000);
 
@@ -74,9 +74,21 @@ fn test_execute_batch_success() {
     let r3 = Address::generate(&env);
 
     let mut payments: Vec<PaymentOp> = Vec::new(&env);
-    payments.push_back(PaymentOp { recipient: r1.clone(), amount: 100, category: soroban_sdk::symbol_short!("payroll") });
-    payments.push_back(PaymentOp { recipient: r2.clone(), amount: 200, category: soroban_sdk::symbol_short!("payroll") });
-    payments.push_back(PaymentOp { recipient: r3.clone(), amount: 300, category: soroban_sdk::symbol_short!("payroll") });
+    payments.push_back(PaymentOp {
+        recipient: r1.clone(),
+        amount: 100,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+    payments.push_back(PaymentOp {
+        recipient: r2.clone(),
+        amount: 200,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+    payments.push_back(PaymentOp {
+        recipient: r3.clone(),
+        amount: 300,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
 
     let batch_id = client.execute_batch(&sender, &token, &payments, &client.get_sequence());
 
@@ -180,8 +192,7 @@ fn test_partial_batch_skips_insufficient_funds() {
         category: soroban_sdk::symbol_short!("payroll"),
     }); // invalid → skip
 
-    let batch_id =
-        client.execute_batch_partial(&sender, &token, &payments, &client.get_sequence());
+    let batch_id = client.execute_batch_partial(&sender, &token, &payments, &client.get_sequence());
 
     let record = client.get_batch(&batch_id);
     assert_eq!(record.success_count, 1);
@@ -203,8 +214,7 @@ fn test_partial_batch_all_fail_status_is_rollbck() {
         category: soroban_sdk::symbol_short!("payroll"),
     });
 
-    let batch_id =
-        client.execute_batch_partial(&sender, &token, &payments, &client.get_sequence());
+    let batch_id = client.execute_batch_partial(&sender, &token, &payments, &client.get_sequence());
 
     let record = client.get_batch(&batch_id);
     assert_eq!(record.success_count, 0);
@@ -608,7 +618,9 @@ fn test_benchmark_50_payment_batch() {
     env.mock_all_auths();
 
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let sender = Address::generate(&env);
     // Mint enough for 50 payments of 1_000 each = 50_000
     StellarAssetClient::new(&env, &token_id).mint(&sender, &100_000);
@@ -661,7 +673,9 @@ fn test_benchmark_50_payment_partial_batch() {
     env.mock_all_auths();
 
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let sender = Address::generate(&env);
     StellarAssetClient::new(&env, &token_id).mint(&sender, &100_000);
 
@@ -772,7 +786,9 @@ fn test_max_batch_100_payments() {
     env.mock_all_auths();
 
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let sender = Address::generate(&env);
     StellarAssetClient::new(&env, &token_id).mint(&sender, &1_000_000);
 
@@ -802,8 +818,6 @@ fn test_max_batch_100_payments() {
     assert_eq!(record.success_count, 100);
     assert_eq!(record.fail_count, 0);
 }
-
-
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── GRACEFUL REVERT WITH REFUND TESTS (Issue #261) ────────────────────────────
@@ -947,7 +961,7 @@ fn test_v2_partial_invalid_recorded_as_failed() {
     let (env, sender, token, client) = setup();
 
     let r_good = Address::generate(&env);
-    let r_bad  = Address::generate(&env);
+    let r_bad = Address::generate(&env);
 
     let mut payments: Vec<PaymentOp> = Vec::new(&env);
     payments.push_back(PaymentOp {
@@ -1020,15 +1034,15 @@ fn test_v2_partial_all_fail_status_rollbck() {
 /// status transitions to Refunded.
 #[test]
 fn test_refund_failed_payment_success() {
-    let (env, sender, token, client) = setup();
-
     // Mint a controlled amount to make balance assertions exact.
     // Mint is already 1_000_000 from setup; use fresh env for precision.
     let env2 = Env::default();
     env2.mock_all_auths();
 
     let token_admin2 = Address::generate(&env2);
-    let token_id2 = env2.register_stellar_asset_contract_v2(token_admin2.clone()).address();
+    let token_id2 = env2
+        .register_stellar_asset_contract_v2(token_admin2.clone())
+        .address();
     let sender2 = Address::generate(&env2);
     StellarAssetClient::new(&env2, &token_id2).mint(&sender2, &1_000);
 
@@ -1051,8 +1065,7 @@ fn test_refund_failed_payment_success() {
         category: soroban_sdk::symbol_short!("payroll"),
     });
 
-    let batch_id =
-        client2.execute_batch_v2(&sender2, &token_id2, &payments, &0, &false);
+    let batch_id = client2.execute_batch_v2(&sender2, &token_id2, &payments, &0, &false);
 
     let tc2 = TokenClient::new(&env2, &token_id2);
     // After batch: sender has 400 (1_000 - 600), contract has 0.
@@ -1105,7 +1118,9 @@ fn test_refund_positive_held_amount_returns_to_sender() {
     env.mock_all_auths();
 
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let sender = Address::generate(&env);
     StellarAssetClient::new(&env, &token_id).mint(&sender, &1_000);
 
@@ -1130,12 +1145,11 @@ fn test_refund_positive_held_amount_returns_to_sender() {
         category: soroban_sdk::symbol_short!("payroll"),
     });
 
-    let batch_id =
-        client.execute_batch_v2(&sender, &token_id, &payments, &0, &false);
+    let batch_id = client.execute_batch_v2(&sender, &token_id, &payments, &0, &false);
 
     let tc = TokenClient::new(&env, &token_id);
     assert_eq!(tc.balance(&r_valid), 500);
-    assert_eq!(tc.balance(&sender), 500);   // 1_000 - 500
+    assert_eq!(tc.balance(&sender), 500); // 1_000 - 500
     assert_eq!(tc.balance(&contract_id), 0); // 0 held (zero amount excluded)
 
     let e1 = client.get_payment_entry(&batch_id, &1);
@@ -1167,8 +1181,7 @@ fn test_refund_already_refunded_panics() {
         category: soroban_sdk::symbol_short!("payroll"),
     });
 
-    let batch_id =
-        client.execute_batch_v2(&sender, &token, &payments, &0, &false);
+    let batch_id = client.execute_batch_v2(&sender, &token, &payments, &0, &false);
 
     client.refund_failed_payment(&batch_id, &0); // first → ok
     client.refund_failed_payment(&batch_id, &0); // second → AlreadyRefunded
@@ -1187,8 +1200,7 @@ fn test_refund_sent_payment_panics() {
         category: soroban_sdk::symbol_short!("payroll"),
     });
 
-    let batch_id =
-        client.execute_batch_v2(&sender, &token, &payments, &0, &false);
+    let batch_id = client.execute_batch_v2(&sender, &token, &payments, &0, &false);
 
     // Index 0 was sent successfully — cannot refund.
     client.refund_failed_payment(&batch_id, &0);
@@ -1216,8 +1228,7 @@ fn test_refund_payment_not_found_panics() {
         category: soroban_sdk::symbol_short!("payroll"),
     });
 
-    let batch_id =
-        client.execute_batch_v2(&sender, &token, &payments, &0, &false);
+    let batch_id = client.execute_batch_v2(&sender, &token, &payments, &0, &false);
 
     // Index 99 was never written.
     client.refund_failed_payment(&batch_id, &99);
@@ -1247,8 +1258,7 @@ fn test_v2_strict_entries_all_sent() {
         });
     }
 
-    let batch_id =
-        client.execute_batch_v2(&sender, &token, &payments, &0, &true);
+    let batch_id = client.execute_batch_v2(&sender, &token, &payments, &0, &true);
 
     for i in 0..5u32 {
         let entry = client.get_payment_entry(&batch_id, &i);
@@ -1264,7 +1274,7 @@ fn test_v2_increments_batch_count() {
     let (env, sender, token, client) = setup();
     let payments = one_payment(&env);
 
-    client.execute_batch(&sender, &token, &payments, &0);           // batch 1
+    client.execute_batch(&sender, &token, &payments, &0); // batch 1
     client.execute_batch_v2(&sender, &token, &payments, &1, &true); // batch 2
     client.execute_batch_v2(&sender, &token, &payments, &2, &false); // batch 3
 
@@ -1411,7 +1421,7 @@ fn test_unpause_allows_batch_again() {
 //
 // These tests verify that every administrative entry point requires correct
 // authorization and that no unauthorized actor can modify contract state.
-// 
+//
 // Soroban's `mock_all_auths()` test helper automatically satisfies all
 // `require_auth()` calls. We verify correctness by inspecting `env.auths()`
 // after each call, which returns the list of (Address, AuthorizedInvocation)
@@ -1510,9 +1520,18 @@ fn test_read_only_functions_need_no_auth() {
     let name = client.name();
     let version = client.version();
     let author = client.author();
-    assert_eq!(name, soroban_sdk::String::from_str(&env, env!("CARGO_PKG_NAME")));
-    assert_eq!(version, soroban_sdk::String::from_str(&env, env!("CARGO_PKG_VERSION")));
-    assert_eq!(author, soroban_sdk::String::from_str(&env, env!("CARGO_PKG_AUTHORS")));
+    assert_eq!(
+        name,
+        soroban_sdk::String::from_str(&env, env!("CARGO_PKG_NAME"))
+    );
+    assert_eq!(
+        version,
+        soroban_sdk::String::from_str(&env, env!("CARGO_PKG_VERSION"))
+    );
+    assert_eq!(
+        author,
+        soroban_sdk::String::from_str(&env, env!("CARGO_PKG_AUTHORS"))
+    );
 }
 
 /// Verify that `bump_ttl` requires admin auth.
@@ -1583,13 +1602,17 @@ fn test_remove_account_limits_requires_admin_auth() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Helper that initializes the contract with a non-zero ledger sequence.
-fn setup_with_ledger(initial_ledger: u32) -> (Env, Address, Address, BulkPaymentContractClient<'static>) {
+fn setup_with_ledger(
+    initial_ledger: u32,
+) -> (Env, Address, Address, BulkPaymentContractClient<'static>) {
     let env = Env::default();
     env.mock_all_auths();
     env.ledger().set_sequence_number(initial_ledger);
 
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let sender = Address::generate(&env);
     StellarAssetClient::new(&env, &token_id).mint(&sender, &1_000_000);
 
@@ -1938,7 +1961,7 @@ fn test_get_scheduled_batch_not_found_panics() {
 #[test]
 #[should_panic(expected = "Error(Contract, #19)")]
 fn test_cancel_nonexistent_batch_panics() {
-    let (env, sender, _token, client) = setup();
+    let (_env, sender, _token, client) = setup();
     client.cancel_scheduled_batch(&sender, &999);
 }
 
@@ -1957,4 +1980,115 @@ fn test_cancel_scheduled_batch_returns_held_funds() {
     client.cancel_scheduled_batch(&sender, &scheduled_id);
     // Funds returned on cancel
     assert_eq!(tc.balance(&sender), balance_before);
+}
+
+#[test]
+fn test_default_throttle_config_is_protocol_limit() {
+    let (_env, _sender, _token, client) = setup();
+
+    let config = client.get_throttle_config();
+
+    assert_eq!(config.max_batch_size, 100);
+    assert_eq!(config.min_ledger_gap, 0);
+}
+
+#[test]
+fn test_set_throttle_config_updates_limits() {
+    let (_env, _sender, _token, client) = setup();
+
+    client.set_throttle_config(&25, &3);
+    let config = client.get_throttle_config();
+
+    assert_eq!(config.max_batch_size, 25);
+    assert_eq!(config.min_ledger_gap, 3);
+}
+
+#[test]
+fn test_configured_batch_size_blocks_large_batch() {
+    let (env, sender, token, client) = setup();
+    client.set_throttle_config(&1, &0);
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    payments.push_back(PaymentOp {
+        recipient: Address::generate(&env),
+        amount: 10,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+    payments.push_back(PaymentOp {
+        recipient: Address::generate(&env),
+        amount: 20,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+
+    let result = client.try_execute_batch(&sender, &token, &payments, &0);
+    assert_eq!(result, Err(Ok(ContractError::BatchTooLarge)));
+}
+
+#[test]
+fn test_min_ledger_gap_throttles_sender() {
+    let (env, sender, token, client) = setup_with_ledger(100);
+    client.set_throttle_config(&100, &3);
+    let payments = one_payment(&env);
+
+    client.execute_batch(&sender, &token, &payments, &0);
+
+    env.ledger().set_sequence_number(102);
+    let result = client.try_execute_batch(&sender, &token, &payments, &1);
+    assert_eq!(result, Err(Ok(ContractError::ThrottleLimitExceeded)));
+}
+
+#[test]
+fn test_min_ledger_gap_allows_after_gap() {
+    let (env, sender, token, client) = setup_with_ledger(100);
+    client.set_throttle_config(&100, &3);
+    let payments = one_payment(&env);
+
+    client.execute_batch(&sender, &token, &payments, &0);
+
+    env.ledger().set_sequence_number(103);
+    let batch_id = client.execute_batch(&sender, &token, &payments, &1);
+    assert_eq!(batch_id, 2);
+}
+
+#[test]
+fn test_invalid_throttle_config_rejected() {
+    let (_env, _sender, _token, client) = setup();
+
+    let result = client.try_set_throttle_config(&0, &0);
+
+    assert_eq!(result, Err(Ok(ContractError::InvalidThrottleConfig)));
+}
+
+#[test]
+fn test_estimate_batch_fee_without_fee_bump() {
+    let (_env, _sender, _token, client) = setup();
+
+    let estimate = client.estimate_batch_fee(&3, &100, &false);
+
+    assert_eq!(estimate.payment_count, 3);
+    assert_eq!(estimate.operation_count, 4);
+    assert_eq!(estimate.recommended_fee_stroops, 400);
+    assert_eq!(estimate.budget_fee_stroops, 800);
+    assert!(!estimate.fee_bump_required);
+}
+
+#[test]
+fn test_estimate_batch_fee_with_fee_bump() {
+    let (_env, _sender, _token, client) = setup();
+
+    let estimate = client.estimate_batch_fee(&2, &100, &true);
+
+    assert_eq!(estimate.operation_count, 3);
+    assert_eq!(estimate.recommended_fee_stroops, 600);
+    assert_eq!(estimate.budget_fee_stroops, 1200);
+    assert!(estimate.fee_bump_required);
+}
+
+#[test]
+fn test_estimate_batch_fee_rejects_invalid_inputs() {
+    let (_env, _sender, _token, client) = setup();
+
+    let result = client.try_estimate_batch_fee(&0, &100, &false);
+
+    assert_eq!(result, Err(Ok(ContractError::InvalidFeeConfig)));
 }

@@ -228,7 +228,9 @@ impl SmartWalletContract {
             j += 1;
         }
 
-        env.storage().instance().set(&DataKey::Signers, &new_signers);
+        env.storage()
+            .instance()
+            .set(&DataKey::Signers, &new_signers);
 
         SignerRemovedEvent {
             removed: signer,

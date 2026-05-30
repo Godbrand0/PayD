@@ -10,11 +10,9 @@
 
 use super::*;
 use soroban_sdk::{
+    Address, Env, String as SorobanString,
     testutils::{Address as _, Ledger},
     token,
-    Address,
-    Env,
-    String as SorobanString,
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -23,13 +21,13 @@ use soroban_sdk::{
 
 fn setup_payment_escrow() -> (
     Env,
-    Address,                            // admin
-    Address,                            // sender
-    Address,                            // token_contract
-    token::Client<'static>,             // token_client
-    token::StellarAssetClient<'static>, // token_admin_client
+    Address,                                  // admin
+    Address,                                  // sender
+    Address,                                  // token_contract
+    token::Client<'static>,                   // token_client
+    token::StellarAssetClient<'static>,       // token_admin_client
     CrossAssetPaymentContractClient<'static>, // payment_client
-    Address,                            // contract_address
+    Address,                                  // contract_address
 ) {
     let env = Env::default();
     env.mock_all_auths();
@@ -87,7 +85,10 @@ fn test_payment_escrow_locks_funds() {
         &SorobanString::from_str(&env, "anchor-1"),
     );
 
-    assert_eq!(token_client.balance(&sender), initial_balance - payment_amount);
+    assert_eq!(
+        token_client.balance(&sender),
+        initial_balance - payment_amount
+    );
     assert_eq!(token_client.balance(&contract_address), payment_amount);
     assert_eq!(payment_id, 1);
 }
@@ -174,8 +175,7 @@ fn test_complete_payment_releases_funds() {
 
 #[test]
 fn test_multiple_payments_released_independently() {
-    let (env, admin, sender, token_contract, token_client, _, client, _) =
-        setup_payment_escrow();
+    let (env, admin, sender, token_contract, token_client, _, client, _) = setup_payment_escrow();
 
     let recipient_1 = Address::generate(&env);
     let recipient_2 = Address::generate(&env);
@@ -242,8 +242,7 @@ fn test_fail_payment_refunds_sender() {
 
 #[test]
 fn test_partial_refund_scenario() {
-    let (env, admin, sender, token_contract, token_client, _, client, _) =
-        setup_payment_escrow();
+    let (env, admin, sender, token_contract, token_client, _, client, _) = setup_payment_escrow();
 
     let recipient = Address::generate(&env);
 
@@ -458,8 +457,7 @@ fn test_zero_balance_after_all_payments_processed() {
     }
 
     for (idx, payment_id) in (1..=10_u64).enumerate() {
-        env.ledger()
-            .set_sequence_number(100 + idx as u32);
+        env.ledger().set_sequence_number(100 + idx as u32);
         client.complete_payment(&admin, &payment_id, &recipient);
     }
 

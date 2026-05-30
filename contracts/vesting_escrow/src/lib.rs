@@ -10,29 +10,29 @@ use soroban_sdk::{
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum ContractError {
-    AlreadyInitialized     = 1,
-    NotInitialized         = 2,
-    Unauthorized           = 3,
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
     /// Duration must be >= cliff duration.
-    InvalidDuration        = 4,
+    InvalidDuration = 4,
     /// Amount must be > 0.
-    InvalidAmount          = 5,
+    InvalidAmount = 5,
     /// Grant has already been revoked or is inactive.
-    AlreadyRevoked         = 6,
+    AlreadyRevoked = 6,
     /// Contract is paused — claim and clawback operations are suspended.
-    ContractPaused         = 7,
+    ContractPaused = 7,
     /// Operation already processed in this ledger sequence.
-    LedgerReplayDetected   = 8,
+    LedgerReplayDetected = 8,
     /// Vesting grant is no longer active (required for beneficiary transfer).
-    GrantInactive          = 9,
+    GrantInactive = 9,
     /// Same admin address supplied — no change required.
-    SameAdmin              = 10,
+    SameAdmin = 10,
     /// Clawback amount must be positive.
-    InvalidClawbackAmount  = 11,
+    InvalidClawbackAmount = 11,
     /// Extension seconds must be positive.
-    InvalidExtension       = 12,
+    InvalidExtension = 12,
     /// Partial clawback would reduce the grant below what has already been claimed.
-    ClawbackBelowClaimed   = 13,
+    ClawbackBelowClaimed = 13,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -254,14 +254,18 @@ impl VestingContract {
     /// Only the current admin may call this function. If `new_admin` equals
     /// the current admin the call returns `SameAdmin` without side effects.
     pub fn set_admin(env: Env, new_admin: Address) -> Result<(), ContractError> {
-        let admin: Address = env.storage().persistent()
+        let admin: Address = env
+            .storage()
+            .persistent()
             .get(&DataKey::Admin)
             .ok_or(ContractError::NotInitialized)?;
         admin.require_auth();
 
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Admin, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Admin,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
 
         if admin == new_admin {
             return Err(ContractError::SameAdmin);
@@ -290,18 +294,16 @@ impl VestingContract {
     ///
     /// Only the current admin may call this.
     pub fn set_paused(env: Env, paused: bool) -> Result<(), ContractError> {
-        let admin: Address = env.storage().persistent()
+        let admin: Address = env
+            .storage()
+            .persistent()
             .get(&DataKey::Admin)
             .ok_or(ContractError::NotInitialized)?;
         admin.require_auth();
 
         env.storage().instance().set(&DataKey::Paused, &paused);
 
-        ContractStatusChangedEvent {
-            paused,
-            admin,
-        }
-        .publish(&env);
+        ContractStatusChangedEvent { paused, admin }.publish(&env);
         Ok(())
     }
 
@@ -326,17 +328,22 @@ impl VestingContract {
     /// Marks the contract as upgraded to a new version (admin only).
     /// Used for tracking contract state evolution and enabling state migrations.
     pub fn mark_upgrade(env: Env, new_version: u32) -> Result<(), ContractError> {
-        let admin: Address = env.storage().persistent()
+        let admin: Address = env
+            .storage()
+            .persistent()
             .get(&DataKey::Admin)
             .ok_or(ContractError::NotInitialized)?;
         admin.require_auth();
 
-        let old_version = env.storage()
+        let old_version = env
+            .storage()
             .persistent()
             .get(&DataKey::Version)
             .unwrap_or(1);
 
-        env.storage().persistent().set(&DataKey::Version, &new_version);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Version, &new_version);
         env.storage().persistent().extend_ttl(
             &DataKey::Version,
             PERSISTENT_TTL_THRESHOLD,
@@ -512,10 +519,7 @@ impl VestingContract {
     /// This allows the clawback admin to prolong the vesting period without
     /// changing the cliff. Only callable while the grant is active. The
     /// additional seconds must be positive.
-    pub fn extend_vesting(
-        env: Env,
-        additional_seconds: u64,
-    ) -> Result<(), ContractError> {
+    pub fn extend_vesting(env: Env, additional_seconds: u64) -> Result<(), ContractError> {
         let mut config: VestingConfig = env
             .storage()
             .persistent()
@@ -535,9 +539,7 @@ impl VestingContract {
         let previous_duration = config.duration_seconds;
         let previous_end = config.start_time.saturating_add(previous_duration);
 
-        config.duration_seconds = config
-            .duration_seconds
-            .saturating_add(additional_seconds);
+        config.duration_seconds = config.duration_seconds.saturating_add(additional_seconds);
         let new_end = config.start_time.saturating_add(config.duration_seconds);
 
         env.storage().persistent().set(&DataKey::Config, &config);
@@ -650,10 +652,7 @@ impl VestingContract {
     /// Transfers the vesting grant to a new beneficiary address. Only the
     /// `clawback_admin` may call this (e.g. to handle account migration).
     /// The new beneficiary inherits all unclaimed vested and future tokens.
-    pub fn transfer_beneficiary(
-        e: Env,
-        new_beneficiary: Address,
-    ) -> Result<(), ContractError> {
+    pub fn transfer_beneficiary(e: Env, new_beneficiary: Address) -> Result<(), ContractError> {
         let mut config: VestingConfig = e
             .storage()
             .persistent()
@@ -749,11 +748,7 @@ impl VestingContract {
     }
 
     fn calc_locked(total: i128, claimed: i128) -> i128 {
-        if total <= claimed {
-            0
-        } else {
-            total - claimed
-        }
+        if total <= claimed { 0 } else { total - claimed }
     }
 
     fn calc_progress_bps(vested: i128, total: i128) -> u32 {
@@ -783,11 +778,7 @@ impl VestingContract {
     }
 
     fn max_i128(lhs: i128, rhs: i128) -> i128 {
-        if lhs >= rhs {
-            lhs
-        } else {
-            rhs
-        }
+        if lhs >= rhs { lhs } else { rhs }
     }
 
     /// Ensures the operation has not already been executed in the current ledger
