@@ -38,6 +38,7 @@ import transactionRoutes from '../transactionRoutes.js';
 import circuitBreakerRoutes from '../circuitBreakerRoutes.js';
 import analyticsRoutes from '../analyticsRoutes.js';
 import migrationStatusRoutes from '../migrationStatusRoutes.js';
+import adminAuditRoutes from '../adminAuditRoutes.js';
 
 const router = Router();
 
@@ -75,5 +76,6 @@ router.use('/transactions', dataRateLimit(), transactionRoutes);
 router.use('/circuit-breakers', apiRateLimit(), circuitBreakerRoutes);
 router.use('/analytics', dataRateLimit(), analyticsRoutes);
 router.use('/migrations', apiRateLimit(), migrationStatusRoutes);
+router.use('/admin-audit', dataRateLimit(), adminAuditRoutes);
 
 export default router;
