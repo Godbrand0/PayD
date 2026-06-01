@@ -14,6 +14,9 @@ import {
 import { ContractErrorPanel } from '../components/ContractErrorPanel';
 import { IssuerMultisigBanner } from '../components/IssuerMultisigBanner';
 import { parseContractError, type ContractErrorDetail } from '../utils/contractErrorParser';
+import { TransactionPendingOverlay } from '../components/TransactionPendingOverlay';
+
+type OverlayStatus = 'pending' | 'success' | 'error';
 
 export default function CrossAssetPayment() {
   const { notifyError, notifyPaymentSuccess, notifyPaymentFailure, notifyApiError } =
@@ -32,6 +35,8 @@ export default function CrossAssetPayment() {
   const [liveStatusMessage, setLiveStatusMessage] = useState<string>('Waiting for submission...');
   const [status, setStatus] = useState<string>('idle');
   const [contractError, setContractError] = useState<ContractErrorDetail | null>(null);
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayStatus, setOverlayStatus] = useState<OverlayStatus>('pending');
 
   const selectedPath = useMemo(
     () => paths.find((path) => path.id === selectedPathId) || null,
@@ -90,7 +95,11 @@ export default function CrossAssetPayment() {
       setStatus(nextStatus);
       setLiveStatusMessage(`Live update: ${nextStatus}`);
       if (nextStatus === 'completed' || nextStatus === 'confirmed') {
+        setOverlayStatus('success');
         notifyPaymentSuccess(txHash, 'Cross-asset payment completed');
+        setTimeout(() => {
+          setOverlayVisible(false);
+        }, 3000);
       }
     };
 
@@ -123,6 +132,8 @@ export default function CrossAssetPayment() {
 
     setStatus('submitting');
     setContractError(null);
+    setOverlayVisible(true);
+    setOverlayStatus('pending');
     try {
       await contractService.initialize();
       const contractId =
@@ -149,6 +160,7 @@ export default function CrossAssetPayment() {
       notifyPaymentSuccess(result.txHash, 'Payment submitted');
     } catch (error) {
       setStatus('error');
+      setOverlayStatus('error');
       const parsed = parseContractError(
         undefined,
         error instanceof Error ? error.message : 'An unexpected error occurred.'
@@ -452,6 +464,13 @@ export default function CrossAssetPayment() {
           </div>
         </div>
       </div>
+
+      <TransactionPendingOverlay
+        isVisible={overlayVisible}
+        status={overlayStatus}
+        txHash={submissionTxHash ?? undefined}
+        onDismiss={() => setOverlayVisible(false)}
+      />
     </div>
   );
 }
