@@ -38,11 +38,14 @@ Create production environment values before deployment.
 - PORT=10000
 - DATABASE_URL=Render PostgreSQL connection string
 - REDIS_URL=Render Redis connection string
-- JWT_SECRET=long random secret
+- JWT_SECRET=long random secret (32+ chars)
+- JWT_REFRESH_SECRET=different long random secret (32+ chars)
 - STELLAR_NETWORK=testnet or mainnet
 - STELLAR_HORIZON_URL=network horizon endpoint
 - STELLAR_SECRET_KEY=secure issuer/distribution key
 - Optional provider keys (email, webhooks, OAuth)
+
+Rotate JWT secrets by updating the Render environment variables and redeploying all backend services that verify or mint tokens.
 
 ## 4. Deploy Backend on Render
 

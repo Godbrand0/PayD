@@ -5,7 +5,10 @@ import {
   EmailProviderType,
 } from './email/emailProviderFactory.js';
 import { TemplateRenderer, TemplateData } from './templateRenderer.js';
-import { NotificationConfigService } from './notificationConfigService.js';
+import {
+  NotificationConfig,
+  NotificationConfigService,
+} from './notificationConfigService.js';
 import { NotificationTrackingService } from './notificationTrackingService.js';
 import { PushNotificationService, PushResult } from './pushNotificationService.js';
 import logger from '../utils/logger.js';
@@ -72,13 +75,6 @@ export class NotificationService {
       const organization = await this.getOrganization(organizationId);
       const notificationConfig = await this.configService.getConfig(organizationId);
 
-      // Initialize email provider if not already done
-      if (!this.emailProvider) {
-        this.emailProvider = this.initializeEmailProvider(
-          notificationConfig.emailProvider
-        );
-      }
-
       // Send email notification
       const emailResult = await this.sendEmail(
         employee,
@@ -136,7 +132,7 @@ export class NotificationService {
   private async sendEmail(
     employee: Employee,
     organization: Organization,
-    notificationConfig: any,
+    notificationConfig: NotificationConfig,
     paymentData: {
       transactionId: number;
       transactionHash: string;
@@ -189,6 +185,10 @@ export class NotificationService {
       );
 
       // Send email
+      if (!this.emailProvider) {
+        this.emailProvider = this.initializeEmailProvider(notificationConfig.emailProvider);
+      }
+
       if (!this.emailProvider) {
         throw new Error('Email provider not initialized');
       }
@@ -254,7 +254,7 @@ export class NotificationService {
   private async sendPush(
     employee: Employee,
     organization: Organization,
-    notificationConfig: any,
+    notificationConfig: NotificationConfig,
     paymentData: {
       transactionId: number;
       transactionHash: string;

@@ -14,6 +14,7 @@ export interface AuditRecord {
   operation_count: number;
   memo: string | null;
   successful: boolean;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -23,7 +24,10 @@ export class TransactionAuditService {
    * then store it as an immutable audit record in the DB.
    * Returns the existing record if the hash was already audited.
    */
-  static async fetchAndStore(txHash: string): Promise<AuditRecord> {
+  static async fetchAndStore(
+    txHash: string,
+    metadata?: Record<string, unknown>
+  ): Promise<AuditRecord> {
     // Check if already stored
     const existing = await pool.query('SELECT * FROM transaction_audit_logs WHERE tx_hash = $1', [
       txHash,
@@ -38,8 +42,8 @@ export class TransactionAuditService {
       `INSERT INTO transaction_audit_logs
         (tx_hash, ledger_sequence, stellar_created_at, envelope_xdr,
          result_xdr, source_account, fee_charged, operation_count,
-         memo, successful)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         memo, successful, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         tx.hash,
@@ -52,6 +56,7 @@ export class TransactionAuditService {
         tx.operation_count,
         tx.memo || null,
         tx.successful,
+        metadata ? JSON.stringify(metadata) : null,
       ]
     );
 
@@ -159,5 +164,23 @@ export class TransactionAuditService {
       record.ledger_sequence === tx.ledger_attr;
 
     return { verified, record };
+  }
+
+  /**
+   * Attach or replace arbitrary metadata on an existing audit record.
+   * Returns the updated record, or null if the hash is not found.
+   */
+  static async setMetadata(
+    txHash: string,
+    metadata: Record<string, unknown>
+  ): Promise<AuditRecord | null> {
+    const result = await pool.query(
+      `UPDATE transaction_audit_logs
+       SET metadata = $1
+       WHERE tx_hash = $2
+       RETURNING *`,
+      [JSON.stringify(metadata), txHash]
+    );
+    return result.rows[0] ?? null;
   }
 }

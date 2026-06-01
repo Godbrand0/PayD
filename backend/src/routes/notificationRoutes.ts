@@ -5,6 +5,7 @@ import {
   updateNotificationConfig,
   registerPushToken,
   removePushToken,
+  sendPaymentNotification,
 } from '../controllers/notificationController.js';
 import { authenticateJWT } from '../middlewares/auth.js';
 
@@ -21,6 +22,9 @@ router.get('/config', getNotificationConfig);
 
 // Update notification configuration (admin only)
 router.put('/config', updateNotificationConfig);
+
+// Send payment notification for a completed payroll transaction
+router.post('/payment', sendPaymentNotification);
 
 // Register a push notification token
 router.post('/push-token', registerPushToken);

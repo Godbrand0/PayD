@@ -8,7 +8,7 @@ deploy, and seed the workspace contracts from one place.
 Run the bootstrapper from the repo root:
 
 ```bash
-python3 scripts/local_contract_bootstrap.py --dry-run
+npm run contracts:bootstrap:dry-run
 ```
 
 The default run plan:
@@ -50,7 +50,7 @@ structured arguments:
 ## Example
 
 ```bash
-python3 scripts/local_contract_bootstrap.py \
+npm run contracts:bootstrap -- \
   --contract bulk_payment,cross_asset_payment,asset_path_payment \
   --source-account psalmuel
 ```

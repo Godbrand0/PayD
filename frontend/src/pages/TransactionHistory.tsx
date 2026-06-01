@@ -6,6 +6,10 @@ import { useFilterState } from '../hooks/useFilterState';
 import { useTransactionHistory } from '../hooks/useTransactionHistory';
 import { useSocket } from '../hooks/useSocket';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { Button, Input, Select, Heading, Text, Card } from '@stellar/design-system';
+
+const InputComponent = Input as unknown as React.FC<Record<string, unknown>>;
+const SelectComponent = Select as unknown as React.FC<Record<string, unknown>>;
 
 const POLLING_INTERVAL_MS = 15_000;
 
@@ -19,15 +23,19 @@ function getStatusClass(status: string): string {
   return 'bg-danger/10 text-danger border border-danger/20';
 }
 
+function getTxExplorerUrl(hash: string): string {
+  return `https://stellar.expert/explorer/public/tx/${hash}`;
+}
+
 function TimelineSkeleton() {
   return (
     <div className="space-y-3">
       {['s1', 's2', 's3', 's4', 's5', 's6'].map((key) => (
-        <div key={key} className="animate-pulse rounded-xl border border-hi p-4 bg-surface-hi/20">
+        <Card key={key} addlClassName="animate-pulse bg-surface-hi/20">
           <div className="h-3 w-40 bg-border-hi rounded mb-2" />
           <div className="h-3 w-64 bg-border-hi rounded mb-2" />
           <div className="h-3 w-28 bg-border-hi rounded" />
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -39,11 +47,9 @@ export default function TransactionHistory() {
   const [showFilters, setShowFilters] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Use filter state hook for managing filters with URL sync and debouncing
   const { filters, debouncedFilters, updateFilter, resetFilters, activeFilterCount } =
     useFilterState();
 
-  // Use transaction history hook for data fetching with TanStack Query
   const { data, isLoading, isLoadingMore, error, hasMore, fetchNextPage, retry, refetch } =
     useTransactionHistory({
       filters: debouncedFilters,
@@ -51,12 +57,10 @@ export default function TransactionHistory() {
       limit: 20,
     });
 
-  // ── WebSocket: atomically update a single item status in-place ─────────
   useEffect(() => {
     if (!socket) return;
 
     const onTransactionUpdate = () => {
-      // Refetch to get the latest data when a transaction updates
       void refetch();
     };
 
@@ -66,7 +70,6 @@ export default function TransactionHistory() {
     };
   }, [socket, refetch]);
 
-  // ── Polling fallback: refresh the first page when socket is down ───────
   useEffect(() => {
     const shouldPoll = !connected || isPollingFallback;
 
@@ -93,12 +96,17 @@ export default function TransactionHistory() {
     <div className="flex-1 flex flex-col p-6 lg:p-12 max-w-7xl mx-auto w-full page-fade">
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between border-b border-hi pb-6 gap-4">
         <div>
-          <h1 className="text-4xl font-black mb-2 tracking-tight">
+          <Heading as="h1" size="lg" weight="bold" addlClassName="mb-2 tracking-tight">
             Transaction <span className="text-accent">History</span>
-          </h1>
-          <p className="text-muted font-mono text-xs tracking-widest uppercase">
+          </Heading>
+          <Text
+            as="p"
+            size="xs"
+            weight="regular"
+            addlClassName="text-muted font-mono tracking-widest uppercase"
+          >
             Unified classic + contract event timeline
-          </p>
+          </Text>
         </div>
         <div className="flex items-center gap-3">
           <ConnectionStatus />
@@ -108,22 +116,19 @@ export default function TransactionHistory() {
           >
             Troubleshoot
           </Link>
-          <button
+          <Button
+            size="md"
+            variant={showFilters ? 'primary' : 'secondary'}
             onClick={() => setShowFilters((prev) => !prev)}
-            className={`px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all ${
-              showFilters
-                ? 'bg-accent text-bg shadow-lg shadow-accent/20'
-                : 'bg-surface-hi text-text border border-hi hover:border-muted'
-            }`}
+            icon={<Filter size={18} />}
           >
-            <Filter size={18} />
             Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-          </button>
+          </Button>
         </div>
       </div>
 
       {showFilters && (
-        <div className="card glass noise mb-6 p-6 animate-fadeUp">
+        <Card addlClassName="mb-6 p-6 animate-fadeUp">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
               Advanced Filters
@@ -148,13 +153,16 @@ export default function TransactionHistory() {
                 Search
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" />
-                <input
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4 z-10" />
+                <InputComponent
                   id="search-filter"
+                  fieldSize="md"
                   value={filters.search}
-                  onChange={(event) => updateFilter('search', event.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    updateFilter('search', e.target.value)
+                  }
                   placeholder="Tx hash / actor..."
-                  className="w-full bg-surface/50 border border-hi rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none focus:border-accent/50 focus:bg-accent/5 transition-all"
+                  addlInputClassName="pl-10"
                 />
               </div>
             </div>
@@ -166,17 +174,19 @@ export default function TransactionHistory() {
               >
                 Status
               </label>
-              <select
+              <SelectComponent
                 id="status-filter"
+                fieldSize="md"
                 value={filters.status}
-                onChange={(event) => updateFilter('status', event.target.value)}
-                className="w-full bg-surface/50 border border-hi rounded-xl px-4 py-2.5 text-sm outline-none focus:border-accent/50 focus:bg-accent/5 transition-all appearance-none"
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  updateFilter('status', e.target.value)
+                }
               >
                 <option value="">All Statuses</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>
                 <option value="failed">Failed</option>
-              </select>
+              </SelectComponent>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -186,12 +196,14 @@ export default function TransactionHistory() {
               >
                 Employee
               </label>
-              <input
+              <InputComponent
                 id="employee-filter"
+                fieldSize="md"
                 value={filters.employee}
-                onChange={(event) => updateFilter('employee', event.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter('employee', e.target.value)
+                }
                 placeholder="Name or wallet..."
-                className="w-full bg-surface/50 border border-hi rounded-xl px-4 py-2.5 text-sm outline-none focus:border-accent/50 focus:bg-accent/5 transition-all"
               />
             </div>
 
@@ -202,12 +214,14 @@ export default function TransactionHistory() {
               >
                 Asset
               </label>
-              <input
+              <InputComponent
                 id="asset-filter"
+                fieldSize="md"
                 value={filters.asset}
-                onChange={(event) => updateFilter('asset', event.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter('asset', e.target.value)
+                }
                 placeholder="USDC, XLM..."
-                className="w-full bg-surface/50 border border-hi rounded-xl px-4 py-2.5 text-sm outline-none focus:border-accent/50 focus:bg-accent/5 transition-all"
               />
             </div>
 
@@ -219,13 +233,16 @@ export default function TransactionHistory() {
                 Start Date
               </label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" />
-                <input
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4 z-10" />
+                <InputComponent
                   id="start-date-filter"
+                  fieldSize="md"
                   type="date"
                   value={filters.startDate}
-                  onChange={(event) => updateFilter('startDate', event.target.value)}
-                  className="w-full bg-surface/50 border border-hi rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none focus:border-accent/50 focus:bg-accent/5 transition-all"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    updateFilter('startDate', e.target.value)
+                  }
+                  addlInputClassName="pl-10"
                 />
               </div>
             </div>
@@ -238,33 +255,33 @@ export default function TransactionHistory() {
                 End Date
               </label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" />
-                <input
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4 z-10" />
+                <InputComponent
                   id="end-date-filter"
+                  fieldSize="md"
                   type="date"
                   value={filters.endDate}
-                  onChange={(event) => updateFilter('endDate', event.target.value)}
-                  className="w-full bg-surface/50 border border-hi rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none focus:border-accent/50 focus:bg-accent/5 transition-all"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    updateFilter('endDate', e.target.value)
+                  }
+                  addlInputClassName="pl-10"
                 />
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="card glass noise flex-1 p-0 overflow-hidden">
+      <Card addlClassName="flex-1 p-0 overflow-hidden">
         <div className="p-6">
           {error ? (
             <div className="text-sm text-danger mb-4 font-medium px-4 py-3 bg-danger/10 border border-danger/20 rounded-lg flex items-center justify-between">
               <span>
                 {error instanceof Error ? error.message : 'Failed to load transaction history'}
               </span>
-              <button
-                onClick={() => retry()}
-                className="ml-4 px-3 py-1 text-xs font-bold bg-danger/20 hover:bg-danger/30 rounded transition-colors"
-              >
+              <Button size="sm" variant="destructive" onClick={() => retry()}>
                 Retry
-              </button>
+              </Button>
             </div>
           ) : null}
           {isLoading ? <TimelineSkeleton /> : null}
@@ -274,11 +291,13 @@ export default function TransactionHistory() {
               <div className="w-16 h-16 rounded-full bg-surface-hi flex items-center justify-center mx-auto mb-6 border border-hi">
                 <Activity className="w-8 h-8 opacity-40 text-muted" />
               </div>
-              <p className="text-lg font-bold text-text mb-1">No transactions found</p>
+              <p className="text-lg font-bold text-text mb-1">
+                {activeFilterCount > 0 ? 'No transactions found' : 'No transactions yet'}
+              </p>
               <p className="text-sm">
                 {activeFilterCount > 0
                   ? 'Try adjusting your filters.'
-                  : 'No transaction history available yet.'}
+                  : 'Your payroll history will appear here once payments are sent.'}
               </p>
             </div>
           ) : null}
@@ -329,11 +348,17 @@ export default function TransactionHistory() {
 
                   {item.txHash ? (
                     <div className="mt-4 pt-4 border-t border-hi/50 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-muted truncate max-w-[70%]">
-                        {item.txHash}
-                      </span>
                       <a
-                        href={`https://stellar.expert/explorer/public/tx/${item.txHash}`}
+                        href={getTxExplorerUrl(item.txHash)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-mono text-accent hover:underline truncate max-w-[70%]"
+                        title={item.txHash}
+                      >
+                        {item.txHash}
+                      </a>
+                      <a
+                        href={getTxExplorerUrl(item.txHash)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[10px] font-bold text-accent hover:underline uppercase tracking-widest"
@@ -349,17 +374,18 @@ export default function TransactionHistory() {
 
           {!isLoading && hasMore ? (
             <div className="mt-8 mb-4 flex justify-center">
-              <button
+              <Button
+                variant="primary"
+                size="md"
                 onClick={() => fetchNextPage()}
                 disabled={isLoadingMore}
-                className="px-8 py-3 rounded-xl bg-accent text-bg font-bold text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-transform disabled:opacity-70"
               >
                 {isLoadingMore ? 'Loading data...' : 'Load older records'}
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -44,7 +44,8 @@ describe('Auth Controller 2FA Integration', () => {
       const response = await request(app).post('/api/auth/2fa/setup').send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Missing walletAddress');
+      expect(response.body.code).toBe('BAD_REQUEST');
+      expect(response.body.message).toBe('Missing walletAddress');
     });
   });
 
@@ -74,7 +75,8 @@ describe('Auth Controller 2FA Integration', () => {
         .send({ walletAddress: 'GCXX_TEST_WALLET', token: '000000' });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Invalid 2FA token');
+      expect(response.body.code).toBe('UNAUTHORIZED');
+      expect(response.body.message).toBe('Invalid 2FA token');
     });
   });
 

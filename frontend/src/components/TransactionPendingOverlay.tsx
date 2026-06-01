@@ -1,168 +1,169 @@
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, Clock3, ExternalLink, Loader2, X, XCircle } from 'lucide-react';
+import { Text } from '@stellar/design-system';
+import { useWallet } from '../hooks/useWallet';
+import { getTxExplorerUrl } from '../utils/stellarExpert';
 
-type OverlayStatus = 'pending' | 'success' | 'error';
+export interface PendingTransaction {
+  id: string;
+  type: string;
+  status: 'pending' | 'confirmed' | 'failed';
+  hash?: string;
+  timestamp: number;
+  description?: string;
+}
 
 interface TransactionPendingOverlayProps {
-  isVisible: boolean;
-  status?: OverlayStatus;
-  txHash?: string;
-  message?: string;
-  subMessage?: string;
-  onDismiss?: () => void;
+  transactions: PendingTransaction[];
+  onDismiss?: (id: string) => void;
 }
 
-const explorerBase =
-  (import.meta.env.VITE_STELLAR_EXPLORER_TX_URL as string | undefined) ||
-  'https://stellar.expert/explorer/testnet/tx/';
+function getStatusLabel(status: PendingTransaction['status']) {
+  if (status === 'confirmed') return 'Transaction confirmed';
+  if (status === 'failed') return 'Transaction failed';
+  return 'Transaction pending';
+}
 
-export function TransactionPendingOverlay({
-  isVisible,
-  status = 'pending',
-  txHash,
-  message,
-  subMessage,
+function getFormattedTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+export const TransactionPendingOverlay: React.FC<TransactionPendingOverlayProps> = ({
+  transactions,
   onDismiss,
-}: TransactionPendingOverlayProps) {
-  const defaultMessages = {
-    pending: {
-      title: 'Broadcasted to Stellar',
-      subtitle: 'Your transaction is being processed on-chain. This may take a few seconds.',
-    },
-    success: {
-      title: 'Transaction Confirmed',
-      subtitle: 'Your transaction has been successfully processed.',
-    },
-    error: {
-      title: 'Transaction Failed',
-      subtitle: 'There was an issue processing your transaction.',
-    },
+}) => {
+  const { network } = useWallet();
+  const [visible, setVisible] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setVisible((previous) => {
+      const nextVisible = { ...previous };
+      let hasChanges = false;
+
+      transactions.forEach((transaction) => {
+        if (!(transaction.id in previous)) {
+          nextVisible[transaction.id] = true;
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? nextVisible : previous;
+    });
+  }, [transactions]);
+
+  const handleDismiss = (id: string) => {
+    setVisible((previous) => ({ ...previous, [id]: false }));
+    window.setTimeout(() => {
+      onDismiss?.(id);
+    }, 300);
   };
 
-  const content = {
-    title: message || defaultMessages[status].title,
-    subtitle: subMessage || defaultMessages[status].subtitle,
-  };
+  const visibleTransactions = transactions.filter((transaction) => visible[transaction.id]);
+
+  if (visibleTransactions.length === 0) return null;
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none"
-          role="dialog"
-          aria-live="polite"
-          aria-label={content.title}
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-full max-w-sm mx-4 bg-surface border border-hi rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
+    <div
+      className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex w-auto flex-col gap-3 sm:inset-x-auto sm:right-6 sm:w-full sm:max-w-md"
+      role="region"
+      aria-live="polite"
+      aria-label="Transaction notifications"
+    >
+      {visibleTransactions.map((transaction) => {
+        const title = getStatusLabel(transaction.status);
+        const explorerUrl = transaction.hash ? getTxExplorerUrl(transaction.hash, network) : null;
+
+        return (
+          <article
+            key={transaction.id}
+            className={`pointer-events-auto rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+              visible[transaction.id] ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+            }`}
+            style={{
+              background: 'color-mix(in srgb, var(--surface) 95%, transparent)',
+            }}
           >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#14F195] via-[#7B61FF] to-[#14F195] bg-[length:200%_100%] animate-[gradient-shift_2s_ease-in-out_infinite]" />
-
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="relative mb-6">
-                {status === 'pending' && (
-                  <div className="w-20 h-20 rounded-full border-4 border-accent/20 flex items-center justify-center bg-accent/5">
-                    <Loader2 className="w-10 h-10 text-accent animate-spin" />
-                  </div>
-                )}
-                {status === 'success' && (
-                  <div className="w-20 h-20 rounded-full border-4 border-emerald-500/30 flex items-center justify-center bg-emerald-500/10">
-                    <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-                  </div>
-                )}
-                {status === 'error' && (
-                  <div className="w-20 h-20 rounded-full border-4 border-red-500/30 flex items-center justify-center bg-red-500/10">
-                    <AlertCircle className="w-10 h-10 text-red-500" />
-                  </div>
-                )}
-
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-bg border-2 border-accent flex items-center justify-center">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    className="text-accent"
-                  >
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                    <path
-                      d="M12 6v6l4 2"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 shrink-0">
+                  {transaction.status === 'pending' ? (
+                    <Loader2
+                      className="h-5 w-5 animate-spin text-[var(--accent)]"
+                      aria-hidden="true"
                     />
-                  </svg>
+                  ) : null}
+                  {transaction.status === 'confirmed' ? (
+                    <CheckCircle2 className="h-5 w-5 text-[var(--success)]" aria-hidden="true" />
+                  ) : null}
+                  {transaction.status === 'failed' ? (
+                    <XCircle className="h-5 w-5 text-[var(--danger)]" aria-hidden="true" />
+                  ) : null}
                 </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Text as="p" size="sm" weight="bold" addlClassName="text-[var(--text)]">
+                      {title}
+                    </Text>
+                    <span className="rounded-full border border-hi bg-black/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                      {transaction.type}
+                    </span>
+                  </div>
+
+                  <Text as="p" size="xs" addlClassName="mb-2 line-clamp-2 text-[var(--muted)]">
+                    {transaction.description || `${transaction.type} transaction`}
+                  </Text>
+
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                      {getFormattedTimestamp(transaction.timestamp)}
+                    </span>
+
+                    {explorerUrl ? (
+                      <a
+                        href={explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-medium text-[var(--accent)] transition-colors hover:text-[var(--accent2)]"
+                        aria-label={`View transaction ${transaction.id} on Stellar Expert`}
+                      >
+                        <span>View on explorer</span>
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+
+                {transaction.status !== 'pending' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDismiss(transaction.id)}
+                    className="shrink-0 rounded-lg p-1.5 text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                    aria-label={`Dismiss notification for ${transaction.type}`}
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
 
-              <h2 className="text-xl font-black tracking-tight mb-2">{content.title}</h2>
-              <p className="text-sm text-muted leading-relaxed mb-4">{content.subtitle}</p>
-
-              {txHash && (
-                <div className="w-full p-3 bg-black/20 border border-hi rounded-xl">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">
-                    Transaction Hash
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <code className="font-mono text-xs text-text break-all">
-                      {txHash.slice(0, 12)}...{txHash.slice(-8)}
-                    </code>
-                    <a
-                      href={`${explorerBase}${txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 text-accent hover:text-accent/80 transition-colors"
-                      aria-label="View transaction on explorer"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
-                    </a>
-                  </div>
+              {transaction.status === 'pending' ? (
+                <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[var(--border-hi)]">
+                  <div
+                    className="h-full w-3/5 animate-pulse bg-[var(--accent)]"
+                    style={{
+                      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }}
+                  />
                 </div>
-              )}
-
-              {status === 'pending' && (
-                <div className="mt-6 flex items-center gap-2 text-xs text-muted">
-                  <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                  <span>Settling on Stellar network...</span>
-                </div>
-              )}
-
-              {(status === 'success' || status === 'error') && onDismiss && (
-                <button
-                  onClick={onDismiss}
-                  className="mt-6 px-6 py-2.5 bg-accent/20 text-accent border border-accent/40 rounded-xl text-sm font-bold hover:bg-accent hover:text-black transition-all"
-                >
-                  Dismiss
-                </button>
-              )}
+              ) : null}
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </article>
+        );
+      })}
+    </div>
   );
-}
-
-export default TransactionPendingOverlay;
+};

@@ -1,6 +1,8 @@
 #![cfg(test)]
 
-use crate::{SignatureProof, SignerKey, SmartWalletContract, SmartWalletContractClient};
+use crate::{
+    SignatureProof, SignerKey, SmartWalletContract, SmartWalletContractClient, WalletError,
+};
 use core::convert::TryInto;
 use ed25519_dalek::{Signer as _, SigningKey as Ed25519SigningKey};
 use k256::ecdsa::SigningKey as SecpSigningKey;
@@ -125,4 +127,137 @@ fn ed25519_auth_uses_host_budget() {
 
     let budget = env.cost_estimate().budget();
     budget.print();
+}
+
+#[test]
+fn add_signer_increases_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let signers = Vec::from_array(&env, [signer1]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    assert_eq!(client.signer_count(), 1);
+    client.add_signer(&signer2);
+    assert_eq!(client.signer_count(), 2);
+}
+
+#[test]
+fn add_duplicate_signer_returns_error() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let signers = Vec::from_array(&env, [signer1.clone()]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    let result = client.try_add_signer(&signer1);
+    assert_eq!(result, Err(Ok(WalletError::DuplicateSigner)));
+}
+
+#[test]
+fn remove_signer_decreases_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let signers = Vec::from_array(&env, [signer1.clone(), signer2.clone()]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    assert_eq!(client.signer_count(), 2);
+    client.remove_signer(&signer2);
+    assert_eq!(client.signer_count(), 1);
+}
+
+#[test]
+fn remove_unknown_signer_returns_error() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let signers = Vec::from_array(&env, [signer1.clone()]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    let result = client.try_remove_signer(&signer2);
+    assert_eq!(result, Err(Ok(WalletError::UnknownSigner)));
+}
+
+#[test]
+fn remove_signer_below_threshold_returns_error() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let signers = Vec::from_array(&env, [signer1.clone()]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    let result = client.try_remove_signer(&signer1);
+    assert_eq!(result, Err(Ok(WalletError::InvalidThreshold)));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── EVENT TESTS ───────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_wallet_initialized_event() {
+    let env = Env::default();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let signers = Vec::from_array(&env, [signer1, signer2]);
+
+    let contract_id = env.register(SmartWalletContract, ());
+    let client = SmartWalletContractClient::new(&env, &contract_id);
+    client.init(&signers, &2);
+
+    assert_eq!(client.signer_count(), 2);
+    assert_eq!(client.threshold(), 2);
+}
+
+#[test]
+fn test_signer_added_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let signers = Vec::from_array(&env, [signer1]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    client.add_signer(&signer2);
+    assert_eq!(client.signer_count(), 2);
+}
+
+#[test]
+fn test_signer_removed_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let signers = Vec::from_array(&env, [signer1.clone(), signer2.clone()]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    client.remove_signer(&signer2);
+    assert_eq!(client.signer_count(), 1);
+}
+
+#[test]
+fn test_threshold_changed_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (signer1, _) = make_ed25519_signer(&env, [1u8; 32]);
+    let (signer2, _) = make_ed25519_signer(&env, [2u8; 32]);
+    let (signer3, _) = make_ed25519_signer(&env, [3u8; 32]);
+    let signers = Vec::from_array(&env, [signer1, signer2, signer3]);
+    let (_contract_id, client) = register_wallet(&env, signers, 1);
+
+    client.set_threshold(&3);
+    assert_eq!(client.threshold(), 3);
 }

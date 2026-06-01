@@ -17,9 +17,11 @@ const EXPLORER_BASE =
   'https://stellar.expert/explorer/testnet/tx/';
 
 /**
- * Resolve a network string to the Stellar Expert path segment.
- * 'MAINNET' / 'PUBLIC' / 'public' → 'public'
- * Everything else                 → 'testnet'
+ * Resolve a human-friendly network string to the specific path segment
+ * recognized by Stellar Expert (`public` or `testnet`).
+ *
+ * @param network - Network identifier (e.g., 'MAINNET', 'TESTNET', 'public')
+ * @returns The corresponding path segment: `'public'` or `'testnet'`
  */
 function resolveNetwork(network: string): 'public' | 'testnet' {
   const lower = network.toLowerCase();
@@ -27,11 +29,12 @@ function resolveNetwork(network: string): 'public' | 'testnet' {
 }
 
 /**
- * Build a Stellar Expert transaction URL.
+ * Build a full Stellar Expert transaction explorer URL.
  *
- * @param txHash  The 64-character hex transaction hash.
- * @param network Optional network identifier.  When omitted, the
- *                `VITE_STELLAR_EXPLORER_TX_URL` env var is used.
+ * @param txHash - The 64-character hex transaction hash
+ * @param network - Optional network identifier; when omitted, the
+ *                `VITE_STELLAR_EXPLORER_TX_URL` env var is used as a base
+ * @returns The complete transaction explorer URL
  */
 export function getTxExplorerUrl(txHash: string, network?: string): string {
   if (network) {

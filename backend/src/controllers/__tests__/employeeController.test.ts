@@ -71,7 +71,8 @@ describe('EmployeeController', () => {
 
       const response = await request(app).post('/api/employees').send(invalidData).expect(400);
 
-      expect(response.body).toHaveProperty('error', 'Validation Error');
+      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('message', 'Validation Error');
       expect(employeeService.create).not.toHaveBeenCalled();
     });
   });

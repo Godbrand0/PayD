@@ -46,6 +46,8 @@ describe('GET /api — discovery endpoint', () => {
     expect(res.body.currentVersion).toBe('v1');
     expect(res.body.supportedVersions).toContain('v1');
     expect(res.body.endpoints.v1).toBe('/api/v1');
+    expect(res.body.endpoints.health).toBe('/api/v1/health');
+    expect(res.body.endpoints.openapi).toBe('/api/v1/openapi.json');
   });
 });
 
@@ -99,6 +101,8 @@ describe('Versioned routes (/api/v1/)', () => {
     '/api/v1/path-payments',
     '/api/v1/audit',
     '/api/v1/tenant-configs',
+    '/api/v1/health',
+    '/api/v1/openapi.json',
   ];
 
   it.each(v1Paths)('%s does not return deprecation headers', async (path) => {

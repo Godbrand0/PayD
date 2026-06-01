@@ -3,6 +3,7 @@ import { payrollQueryService } from '../services/payroll-query.service.js';
 import logger from '../utils/logger.js';
 import { authenticateJWT } from '../middlewares/auth.js';
 import { authorizeRoles, isolateOrganization } from '../middlewares/rbac.js';
+import { optionalIpWhitelist } from '../middlewares/ipWhitelist.js';
 
 const router = Router();
 
@@ -12,10 +13,11 @@ function asString(value: unknown): string | undefined {
   return undefined;
 }
 
-// Apply authentication to all payroll routes
+// Apply authentication and IP whitelisting to all payroll routes
 router.use(authenticateJWT);
 router.use(authorizeRoles('EMPLOYER', 'EMPLOYEE'));
 router.use(isolateOrganization);
+router.use(optionalIpWhitelist);
 
 /**
  * Query payroll transactions with filtering and pagination

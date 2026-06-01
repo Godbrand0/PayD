@@ -4,28 +4,31 @@
  */
 
 export interface ContractEntry {
+  /** The 57-character Stellar contract ID (starts with 'C'). */
   contractId: string;
+  /** The Stellar network name ('testnet' or 'mainnet'). */
   network: string;
+  /** The type of contract (e.g., 'payment', 'token'). */
   contractType: string;
+  /** Semantic version of the contract implementation. */
   version: string;
+  /** Ledger sequence number when the contract was deployed. */
   deployedAt: number;
 }
 
 export interface ValidationResult {
+  /** Whether the object passed all validation checks. */
   isValid: boolean;
+  /** Array of human-readable error messages; empty when `isValid` is `true`. */
   errors: string[];
 }
 
 /**
- * Validates a Stellar contract address format
- * Format: C followed by exactly 56 alphanumeric characters
- */
-/**
  * Validates a Stellar/Soroban contract address format.
- * Must start with 'C' followed by exactly 56 base32 alphanumeric characters (CB[0-9A-HJ-NP-Z]).
+ * Must start with 'C' followed by exactly 56 base32 alphanumeric characters.
  *
  * @param contractId - The contract ID string to validate
- * @returns True if valid Stellar contract ID format, false otherwise
+ * @returns `true` if the format is valid, `false` otherwise
  */
 export function validateContractId(contractId: string): boolean {
   const stellarContractRegex = /^C[A-Z0-9]{56}$/;
@@ -33,29 +36,24 @@ export function validateContractId(contractId: string): boolean {
 }
 
 /**
- * Validates network value
- */
-/**
  * Validates the Stellar network identifier.
  *
- * @param network - Network name ('testnet' or 'mainnet')
- * @returns True if valid network, false otherwise
+ * @param network - Network name; must be `'testnet'` or `'mainnet'`
+ * @returns `true` if the network value is recognised, `false` otherwise
  */
 export function validateNetwork(network: string): boolean {
   return network === 'testnet' || network === 'mainnet';
 }
 
 /**
- * Validates deployedAt ledger sequence
- */
-/**
- * Validates the ledger sequence number when the contract was deployed.
+ * Validates the ledger sequence number at which the contract was deployed.
  *
- * @param deployedAt - Ledger sequence number (must be positive integer)
- * @returns True if valid ledger sequence, false otherwise
+ * @param deployedAt - Ledger sequence number; must be a positive integer
+ * @returns `true` if the value is a positive integer, `false` otherwise
  */
 export function validateDeployedAt(deployedAt: number): boolean {
-  return Number.isInteger(deployedAt) && deployedAt > 0;
+  // Ledger sequence is best-effort metadata; allow `0` when unknown/unset.
+  return Number.isInteger(deployedAt) && deployedAt >= 0;
 }
 
 /**
@@ -93,7 +91,9 @@ export function validateContractEntry(entry: Partial<ContractEntry>): Validation
   if (entry.deployedAt === undefined || entry.deployedAt === null) {
     errors.push('Missing required field: deployedAt');
   } else if (!validateDeployedAt(entry.deployedAt)) {
-    errors.push(`Invalid deployedAt value: ${entry.deployedAt}. Must be a positive integer`);
+    errors.push(
+      `Invalid deployedAt value: ${entry.deployedAt}. Must be a non-negative integer (0 when unknown)`
+    );
   }
 
   return {

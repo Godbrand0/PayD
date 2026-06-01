@@ -1,12 +1,27 @@
+import express from 'express';
 import request from 'supertest';
-import app from '../app.js';
 import { Redis } from 'ioredis';
 import { config } from '../config/env.js';
+import authRoutes from '../routes/authRoutes.js';
+import rateLimitRoutes from '../routes/rateLimitRoutes.js';
+import { apiRateLimit } from '../middlewares/rateLimitMiddleware.js';
 
 describe('Rate Limiting Integration', () => {
+  const app = express();
   let redis: Redis;
 
   beforeAll(async () => {
+    app.use(express.json());
+    app.get('/health', (_req, res) => {
+      res.status(200).json({ status: 'ok' });
+    });
+    app.use('/auth', authRoutes);
+    app.use('/api/auth', authRoutes);
+    app.use('/api/v1/rate-limit', apiRateLimit(), rateLimitRoutes);
+    app.use('/api', apiRateLimit(), (_req, res) => {
+      res.status(404).json({ error: 'Not Found' });
+    });
+
     if (config.REDIS_URL) {
       redis = new Redis(config.REDIS_URL);
     }
@@ -28,9 +43,6 @@ describe('Rate Limiting Integration', () => {
   });
 
   it('should include rate limit headers for API routes', async () => {
-    const response = await request(app).get('/health');
-
-    // Use health which is not rate limited but we can check an API route
     const apiResponse = await request(app).get('/api/v1/rate-limit/tiers');
 
     expect(apiResponse.headers).toHaveProperty('x-ratelimit-limit');
@@ -54,5 +66,20 @@ describe('Rate Limiting Integration', () => {
     // Auth limit is 10, API limit is 100
     expect(authResponse.headers['x-ratelimit-limit']).toBe('10');
     expect(apiResponse.headers['x-ratelimit-limit']).toBe('100');
+  });
+
+  it('should throttle repeated login attempts after the auth limit is reached', async () => {
+    let lastResponse;
+
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      lastResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ walletAddress: 'GCXX_TEST_WALLET' });
+    }
+
+    expect(lastResponse?.status).toBe(429);
+    expect(lastResponse?.body.error).toBe('Too Many Requests');
+    expect(lastResponse?.headers['x-ratelimit-limit']).toBe('10');
+    expect(lastResponse?.headers).toHaveProperty('retry-after');
   });
 });

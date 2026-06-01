@@ -1,3 +1,12 @@
+/**
+ * Resize an image `File` to fit within the provided max dimensions while
+ * preserving aspect ratio. Returns a JPEG `Blob` at quality 0.8.
+ *
+ * @param file - The input image file selected by the user
+ * @param maxWidth - Maximum width in pixels (default 400)
+ * @param maxHeight - Maximum height in pixels (default 400)
+ * @returns Promise resolving to an optimized image `Blob`
+ */
 export const resizeImage = (
   file: File,
   maxWidth: number = 400,
@@ -52,6 +61,14 @@ export const resizeImage = (
   });
 };
 
+/**
+ * Resize and upload an image file to the provided endpoint. Returns the
+ * `imageUrl` returned by the server on success.
+ *
+ * @param file - Original image file to upload
+ * @param endpoint - Upload endpoint URL accepting a multipart `image` field
+ * @returns Promise resolving to the uploaded image URL
+ */
 export const uploadImage = async (file: File, endpoint: string): Promise<string> => {
   const resizedBlob = await resizeImage(file);
   const formData = new FormData();
@@ -78,6 +95,12 @@ export const uploadImage = async (file: File, endpoint: string): Promise<string>
   return (raw as { imageUrl: string }).imageUrl;
 };
 
+/**
+ * Convert a `Blob` into a `data:` URL string.
+ *
+ * @param blob - Binary image blob
+ * @returns Promise resolving to a `data:` URL string suitable for `img.src`
+ */
 export const blobToDataUrl = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -100,6 +123,14 @@ export interface ProcessImageUploadOptions {
   maxFileSizeMb?: number;
 }
 
+/**
+ * Process an image for upload: validate type & size, resize, and either
+ * return a data URL (when no endpoint provided) or upload to a server.
+ *
+ * @param file - Image file provided by the user
+ * @param options - Processing options (endpoint, max sizes, max file size)
+ * @returns Promise resolving to either a data URL or uploaded image URL
+ */
 export const processImageUpload = async (
   file: File,
   options: ProcessImageUploadOptions = {}

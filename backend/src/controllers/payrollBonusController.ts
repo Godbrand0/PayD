@@ -265,11 +265,40 @@ export class PayrollBonusController {
   static async deletePayrollItem(req: Request, res: Response): Promise<void> {
     try {
       const { itemId } = req.params;
-      const deleted = await PayrollBonusService.deletePayrollItem(parseInt(itemId as string, 10));
+      const organizationId = req.user?.organizationId;
+      const itemIdInt = parseInt(itemId as string, 10);
+
+      // Fetch item before deletion so we can log it
+      const item = await PayrollBonusService.getPayrollItemById(itemIdInt);
+
+      if (!item) {
+        res.status(404).json({ error: 'Payroll item not found' });
+        return;
+      }
+
+      const deleted = await PayrollBonusService.deletePayrollItem(itemIdInt);
 
       if (!deleted) {
         res.status(404).json({ error: 'Payroll item not found' });
         return;
+      }
+
+      // Log audit entry for item deletion
+      if (organizationId) {
+        await PayrollAuditService.log({
+          organizationId,
+          payrollRunId: item.payroll_run_id,
+          payrollItemId: itemIdInt,
+          employeeId: item.employee_id,
+          action: 'item_deleted',
+          actorType: 'user',
+          actorId: req.user?.id?.toString(),
+          actorEmail: req.user?.email,
+          amount: item.amount,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          metadata: { item_type: item.item_type },
+        });
       }
 
       res.json({
@@ -333,6 +362,73 @@ export class PayrollBonusController {
         error: 'Failed to update payroll run status',
         message: (error as Error).message,
       });
+    }
+  }
+
+  static async listBonusesByType(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.user?.organizationId;
+      const { bonusType } = req.params;
+      const { page, limit } = req.query;
+
+      if (!organizationId) {
+        res.status(400).json({ error: 'User must belong to an organization' });
+        return;
+      }
+
+      const validTypes = ['performance', 'referral', 'project', 'retention', 'spot', 'other'];
+      if (!validTypes.includes(bonusType as string)) {
+        res
+          .status(400)
+          .json({ error: `Invalid bonus_type. Must be one of: ${validTypes.join(', ')}` });
+        return;
+      }
+
+      const result = await PayrollBonusService.listBonusesByType(
+        organizationId,
+        bonusType as any,
+        Number.parseInt(page as string, 10) || 1,
+        Number.parseInt(limit as string, 10) || 20
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      logger.error('Failed to list bonuses by type', error);
+      res
+        .status(500)
+        .json({ error: 'Failed to list bonuses by type', message: (error as Error).message });
+    }
+  }
+
+  static async getPerformanceBonuses(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.user?.organizationId;
+      const { minScore, page, limit } = req.query;
+
+      if (!organizationId) {
+        res.status(400).json({ error: 'User must belong to an organization' });
+        return;
+      }
+
+      const parsedMinScore = minScore !== undefined ? Number(minScore) : 0;
+      if (isNaN(parsedMinScore) || parsedMinScore < 0 || parsedMinScore > 100) {
+        res.status(400).json({ error: 'minScore must be a number between 0 and 100' });
+        return;
+      }
+
+      const result = await PayrollBonusService.getPerformanceBonusesByScore(
+        organizationId,
+        parsedMinScore,
+        Number.parseInt(page as string, 10) || 1,
+        Number.parseInt(limit as string, 10) || 20
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      logger.error('Failed to get performance bonuses', error);
+      res
+        .status(500)
+        .json({ error: 'Failed to get performance bonuses', message: (error as Error).message });
     }
   }
 

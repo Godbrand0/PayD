@@ -19,8 +19,13 @@ import { LanguageSelector } from './LanguageSelector';
 import { ThemeToggle } from './ThemeToggle';
 import ErrorBoundary from './ErrorBoundary';
 import ErrorFallback from './ErrorFallback';
+import { Breadcrumb } from './Breadcrumb';
+import { NetworkSwitcher } from './NetworkSwitcher';
 import { useNativeXlmBalance } from '../hooks/useNativeXlmBalance';
+import { useTransactionNotifications } from '../hooks/useTransactionNotifications';
 import { useWallet } from '../hooks/useWallet';
+import { TransactionPendingOverlay } from './TransactionPendingOverlay';
+import { TransactionProvider } from '../contexts/TransactionContext';
 
 const ORG_NAME =
   (import.meta.env.VITE_ORG_DISPLAY_NAME as string | undefined)?.trim() || 'Organization';
@@ -33,19 +38,21 @@ function formatXlm(balance: string | null | undefined): string {
 }
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+  `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
     isActive
-      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)]'
-      : 'text-[var(--muted)] hover:bg-white/5 hover:text-[var(--text)]'
+      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] shadow-[0_0_20px_rgba(74,240,184,0.15)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-8 before:w-1 before:rounded-r-full before:bg-[var(--accent)]'
+      : 'text-[var(--muted)] hover:bg-white/5 hover:text-[var(--text)] hover:translate-x-0.5'
   }`;
 
-const iconClass = 'h-4 w-4 shrink-0 opacity-80';
+const iconClass =
+  'h-4 w-4 shrink-0 opacity-80 transition-transform duration-200 group-hover:scale-110';
 
-const EmployerLayout: React.FC = () => {
+const EmployerLayoutContent: React.FC = () => {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { address } = useWallet();
   const { data: xlmBalance, isFetching: balanceLoading } = useNativeXlmBalance();
+  const { transactions, dismissTransaction } = useTransactionNotifications();
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -156,9 +163,7 @@ const EmployerLayout: React.FC = () => {
               <Heading as="h1" size="md" weight="bold" addlClassName="truncate tracking-tight">
                 {ORG_NAME}
               </Heading>
-              <Text as="p" size="xs" addlClassName="text-[var(--muted)] truncate">
-                Employer dashboard
-              </Text>
+              <Breadcrumb />
             </div>
           </div>
 
@@ -179,6 +184,7 @@ const EmployerLayout: React.FC = () => {
                 {!address ? 'Connect wallet' : balanceLoading ? '…' : formatXlm(xlmBalance ?? null)}
               </span>
             </div>
+            <NetworkSwitcher />
             <LanguageSelector />
             <ThemeToggle />
             <ConnectAccount />
@@ -191,7 +197,18 @@ const EmployerLayout: React.FC = () => {
           </ErrorBoundary>
         </main>
       </div>
+
+      {/* Transaction Pending Overlay */}
+      <TransactionPendingOverlay transactions={transactions} onDismiss={dismissTransaction} />
     </div>
+  );
+};
+
+const EmployerLayout: React.FC = () => {
+  return (
+    <TransactionProvider>
+      <EmployerLayoutContent />
+    </TransactionProvider>
   );
 };
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import tenantConfigService from '../services/tenantConfigService.js';
+import { orgAuditService } from '../services/orgAuditService.js';
 
 const upsertSchema = z.object({
   configKey: z.string().min(1).max(100),
@@ -46,12 +47,29 @@ export class TenantConfigController {
         return res.status(403).json({ error: 'User is not associated with an organization' });
       }
       const { configKey, configValue, description } = upsertSchema.parse(req.body);
+
+      // Capture old value for audit diff
+      const oldValue = await tenantConfigService.getConfig(organizationId, configKey);
+
       const updated = await tenantConfigService.setConfig(
         organizationId,
         configKey,
         configValue,
         description
       );
+
+      // Fire-and-forget audit log (errors must not break the response)
+      void orgAuditService.log({
+        organizationId,
+        changeType: 'setting_upserted',
+        configKey,
+        oldValue: oldValue ?? undefined,
+        newValue: configValue,
+        actorId: req.user?.id,
+        actorEmail: req.user?.email,
+        actorIp: req.ip,
+      });
+
       return res.status(200).json({ success: true, data: updated });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -69,8 +87,23 @@ export class TenantConfigController {
         return res.status(403).json({ error: 'User is not associated with an organization' });
       }
       const configKey = req.params.configKey as string;
+
+      // Capture old value for audit diff before deleting
+      const oldValue = await tenantConfigService.getConfig(organizationId, configKey);
+
       const deleted = await tenantConfigService.deleteConfig(organizationId, configKey);
       if (!deleted) return res.status(404).json({ error: 'Configuration not found' });
+
+      void orgAuditService.log({
+        organizationId,
+        changeType: 'setting_deleted',
+        configKey,
+        oldValue: oldValue ?? undefined,
+        actorId: req.user?.id,
+        actorEmail: req.user?.email,
+        actorIp: req.ip,
+      });
+
       return res.status(204).send();
     } catch (error) {
       console.error('delete tenant config error:', error);

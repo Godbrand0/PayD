@@ -105,7 +105,7 @@ curl -X POST http://localhost:4000/api/employees \
 
 ### Update Employee
 
-**PATCH** `/api/employees/:id`
+**PATCH** `/api/employees/:id` or **PUT** `/api/employees/:id`
 **Role:** EMPLOYER
 
 All fields are optional. Only provided fields are updated.
@@ -124,6 +124,29 @@ curl -X PATCH http://localhost:4000/api/employees/1 \
 ```
 
 **Response:** `200 OK`
+
+---
+
+### Bulk Import Employees
+
+**POST** `/api/employees/bulk-import`
+**Role:** EMPLOYER
+
+Imports employees from CSV content in the request body. The route is evaluated before `/:id`, so it is not mistaken for an employee ID.
+
+```bash
+curl -X POST http://localhost:4000/api/employees/bulk-import \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": 1,
+    "csv": "first_name,last_name,email,wallet_address,position,department,base_salary,base_currency\nAda,Lovelace,ada@example.com,,Engineer,R&D,1000,USDC"
+  }'
+```
+
+Supported CSV headers: `first_name`, `last_name`, `email`, `wallet_address`, `position`, `department`, `base_salary`, `base_currency`.
+
+**Response:** `201 Created` for a clean import, or `207 Multi-Status` when some rows fail validation.
 
 ---
 

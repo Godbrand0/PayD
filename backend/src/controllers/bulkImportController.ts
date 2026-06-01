@@ -5,10 +5,10 @@ import logger from '../utils/logger.js';
 export class BulkImportController {
   async import(req: Request, res: Response) {
     try {
-      const { organization_id } = req.body;
+      const organizationId = req.user?.organizationId ?? Number(req.body.organization_id);
       const csvContent = req.body.csv; // Assuming the CSV is sent as a string in the 'csv' field
 
-      if (!organization_id) {
+      if (!organizationId) {
         return res.status(400).json({ error: 'Missing organization_id' });
       }
 
@@ -16,10 +16,7 @@ export class BulkImportController {
         return res.status(400).json({ error: 'Missing csv content' });
       }
 
-      const result = await csvPayrollImportService.processCsv(
-        parseInt(organization_id),
-        csvContent
-      );
+      const result = await csvPayrollImportService.processCsv(organizationId, csvContent);
 
       // Return 207 Multi-Status if there were any errors, otherwise 200/201
       const statusCode = result.errorCount > 0 ? 207 : result.successCount > 0 ? 201 : 200;
@@ -36,11 +33,11 @@ export class BulkImportController {
         },
         errors: result.errors,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Bulk Import Controller Error:', error);
       res.status(500).json({
         error: 'Internal Server Error',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'Unknown import error',
       });
     }
   }

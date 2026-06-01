@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { List } from 'react-window';
 import { useNotification } from '../hooks/useNotification';
 import { useSocket } from '../hooks/useSocket';
 import { useWallet } from '../hooks/useWallet';
@@ -269,7 +270,7 @@ export function BulkPaymentStatusTracker({ organizationId }: BulkPaymentStatusTr
             onChange={(e) =>
               setStatusFilter(e.target.value as 'All' | 'Completed' | 'Pending' | 'Failed')
             }
-            className="text-xs bg-surface border border-hi rounded px-2 py-1 text-text outline-none focus:border-accent"
+            className="dropdown-select"
           >
             <option value="All">All Statuses</option>
             <option value="Completed">Completed</option>
@@ -300,6 +301,7 @@ export function BulkPaymentStatusTracker({ organizationId }: BulkPaymentStatusTr
               <tr>
                 <th className="py-2 pr-4">Batch</th>
                 <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Progress</th>
                 <th className="py-2 pr-4">Employees</th>
                 <th className="py-2 pr-4">Total</th>
                 <th className="py-2 pr-4">Confirmations</th>
@@ -373,6 +375,9 @@ function FragmentRow({
   onToggleExpand,
   onRetry,
 }: FragmentRowProps) {
+  const progressPercent =
+    employeeCount > 0 ? Math.round((confirmationCount / employeeCount) * 100) : 0;
+
   return (
     <>
       <tr className="border-b border-hi/40">
@@ -386,6 +391,21 @@ function FragmentRow({
               </span>
             ) : null}
           </div>
+        </td>
+        <td className="py-3 pr-4">
+          {run.status === 'processing' || run.status === 'pending' ? (
+            <div className="flex flex-col gap-1 min-w-[100px]">
+              <div className="w-full bg-surface-hi rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="h-full bg-accent transition-all duration-300 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-muted">{progressPercent}%</span>
+            </div>
+          ) : (
+            <span className="text-muted">-</span>
+          )}
         </td>
         <td className="py-3 pr-4">{employeeCount}</td>
         <td className="py-3 pr-4">
@@ -423,12 +443,12 @@ function FragmentRow({
       </tr>
       {expanded ? (
         <tr className="border-b border-hi/40 bg-black/10">
-          <td colSpan={7} className="py-3">
+          <td colSpan={8} className="py-3">
             {!summary ? (
               <p className="text-sm text-muted">Loading recipient statuses...</p>
             ) : (
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-4 rounded-md border border-hi/30 px-3 py-2 text-xs text-muted">
+                <div className="flex flex-wrap items-center gap-4 rounded-md border border-hi/30 px-3 py-2 text-xs text-muted mb-3">
                   <span>Recipients: {summary.items.length}</span>
                   <span>Confirmed on-chain: {onChainState?.successCount ?? 0}</span>
                   <span>Failed on-chain: {onChainState?.failCount ?? 0}</span>
@@ -438,52 +458,36 @@ function FragmentRow({
                     </span>
                   ) : null}
                 </div>
-                {summary.items.map((recipient, index) => {
-                  const onChainRecipient = onChainState?.items[index];
-                  const status =
-                    onChainRecipient?.status && onChainRecipient.status !== 'unknown'
-                      ? onChainRecipient.status
-                      : toRecipientStatus(recipient.status);
-                  const retryId = `${run.batch_id}:${index}`;
-
-                  return (
-                    <div
-                      key={recipient.id}
-                      className="grid gap-2 rounded-md border border-hi/30 px-3 py-3 text-xs md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-semibold text-text">{getEmployeeName(recipient)}</p>
-                        {onChainRecipient?.recipient ? (
-                          <p className="truncate font-mono text-[11px] text-muted">
-                            {onChainRecipient.recipient}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div>
-                        <p className="text-muted">Amount</p>
-                        <p>
-                          {recipient.amount} {run.asset_code}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted">Status</p>
-                        <p className="capitalize">{status}</p>
-                      </div>
-                      <div className="flex items-center justify-end">
-                        {status === 'failed' ? (
-                          <button
-                            type="button"
-                            onClick={() => onRetry(index)}
-                            disabled={retryingKey === retryId}
-                            className="text-danger hover:text-danger/80 disabled:opacity-60"
-                          >
-                            {retryingKey === retryId ? 'Retrying...' : 'Retry'}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })}
+                {summary.items.length > 100 ? (
+                  <List
+                    rowCount={summary.items.length}
+                    rowHeight={92}
+                    rowComponent={VirtualizedRecipientRow}
+                    rowProps={{
+                      items: summary.items,
+                      run,
+                      onChainState,
+                      retryingKey,
+                      onRetry,
+                      // index and style are injected per-row by List at render time
+                    }}
+                    style={{ height: 400, width: '100%' }}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {summary.items.map((recipient, index) => (
+                      <RecipientRow
+                        key={recipient.id}
+                        recipient={recipient}
+                        index={index}
+                        run={run}
+                        onChainState={onChainState}
+                        retryingKey={retryingKey}
+                        onRetry={onRetry}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </td>
@@ -492,3 +496,96 @@ function FragmentRow({
     </>
   );
 }
+interface RecipientRowProps {
+  recipient: PayrollRecipientStatus;
+  index: number;
+  run: PayrollRunRecord;
+  onChainState?: OnChainBatchState;
+  retryingKey: string | null;
+  onRetry: (paymentIndex: number) => void;
+  style?: React.CSSProperties;
+}
+
+function RecipientRow({
+  recipient,
+  index,
+  run,
+  onChainState,
+  retryingKey,
+  onRetry,
+  style,
+}: RecipientRowProps) {
+  const onChainRecipient = onChainState?.items[index];
+  const status =
+    onChainRecipient?.status && onChainRecipient.status !== 'unknown'
+      ? onChainRecipient.status
+      : toRecipientStatus(recipient.status);
+  const retryId = `${run.batch_id}:${index}`;
+
+  return (
+    <div style={style}>
+      <div
+        className="grid gap-2 rounded-md border border-hi/30 px-3 py-3 text-xs md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] mb-3"
+        style={style ? { marginBottom: 0, height: 'calc(100% - 12px)' } : {}}
+      >
+        <div className="min-w-0">
+          <p className="font-semibold text-text">{getEmployeeName(recipient)}</p>
+          {onChainRecipient?.recipient ? (
+            <p className="truncate font-mono text-[11px] text-muted">
+              {onChainRecipient.recipient}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <p className="text-muted">Amount</p>
+          <p>
+            {recipient.amount} {run.asset_code}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted">Status</p>
+          <p className="capitalize">{status}</p>
+        </div>
+        <div className="flex items-center justify-end">
+          {status === 'failed' ? (
+            <button
+              type="button"
+              onClick={() => onRetry(index)}
+              disabled={retryingKey === retryId}
+              className="text-danger hover:text-danger/80 disabled:opacity-60"
+            >
+              {retryingKey === retryId ? 'Retrying...' : 'Retry'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface VirtualizedRowData {
+  items: PayrollRecipientStatus[];
+  run: PayrollRunRecord;
+  onChainState?: OnChainBatchState;
+  retryingKey: string | null;
+  onRetry: (paymentIndex: number) => void;
+}
+
+const VirtualizedRecipientRow = ({
+  index,
+  style,
+  ...data
+}: { index: number; style: React.CSSProperties } & VirtualizedRowData) => {
+  const recipient = data.items[index];
+  return (
+    <RecipientRow
+      recipient={recipient}
+      index={index}
+      run={data.run}
+      onChainState={data.onChainState}
+      retryingKey={data.retryingKey}
+      onRetry={data.onRetry}
+      style={style}
+    />
+  );
+};

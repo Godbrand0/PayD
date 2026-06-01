@@ -335,6 +335,7 @@ If issues persist, check the transaction simulation panel for specific error det
 - Check that you're logged into Freighter
 - Try refreshing the page and reconnecting
 - Verify you're on the correct network (Mainnet/Testnet)
+- If the approval prompt does not appear within 15 seconds, PayD will show a timeout error so you can retry safely
 
 **xBull:**
 - Make sure xBull mobile app is installed
@@ -344,6 +345,7 @@ If issues persist, check the transaction simulation panel for specific error det
 **Lobstr:**
 - Verify Lobstr extension/app is active
 - Ensure you've approved the connection request
+- If the approval prompt stalls for more than 15 seconds, close the request, reopen the wallet, and try again
 
 **General fixes:**
 - Clear browser cache and cookies

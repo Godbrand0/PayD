@@ -22,13 +22,11 @@ import type {
   AuditRecord,
   ContractEvent,
 } from '../types/transactionHistory';
+import axiosInstance from '../api/axiosInstance';
 
 // ============================================================================
 // Configuration
 // ============================================================================
-
-const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000';
 
 // ============================================================================
 // Error Handling
@@ -88,25 +86,6 @@ export function categorizeError(error: unknown): ErrorState {
 // Query Parameter Building
 // ============================================================================
 
-/**
- * Builds a query string from an object of parameters
- * Filters out undefined and empty string values
- *
- * @param params - Object containing query parameters
- * @returns URLSearchParams object ready for use in fetch
- */
-function buildQueryParams(params: Record<string, string | number | undefined>): URLSearchParams {
-  const query = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    // Skip undefined and empty string values
-    if (value === undefined || value === '') return;
-    query.set(key, String(value));
-  });
-
-  return query;
-}
-
 // ============================================================================
 // Audit API Functions
 // ============================================================================
@@ -126,44 +105,27 @@ export async function fetchAuditRecords(
 ): Promise<AuditApiResponse> {
   const { page, limit, status, employee, asset, startDate, endDate, search } = options;
 
-  // Build query parameters
-  const queryParams = buildQueryParams({
-    page,
-    limit,
-    status,
-    employee,
-    asset,
-    startDate,
-    endDate,
-    search,
-  });
-
-  const url = `${API_BASE_URL}/api/v1/audit?${queryParams.toString()}`;
-
   try {
-    const response = await fetch(url, { signal });
+    const response = await axiosInstance.get<AuditApiResponse>('/api/v1/audit', {
+      params: {
+        page,
+        limit,
+        status,
+        employee,
+        asset,
+        startDate,
+        endDate,
+        search,
+      },
+      signal,
+    });
 
-    if (!response.ok) {
-      // Create an error object with response info for categorization
-      const error = new Error(`HTTP ${response.status}`) as Error & {
-        response?: { status: number };
-      };
-      error.response = { status: response.status };
-      throw error;
-    }
-
-    const data: unknown = await response.json();
-    return data as AuditApiResponse;
+    return response.data;
   } catch (error) {
-    // If the request was aborted, rethrow with the expected message
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('The operation was aborted.');
-    }
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'CanceledError') {
       throw new Error('The operation was aborted.');
     }
 
-    // Otherwise, categorize and rethrow
     const categorized = categorizeError(error);
     const enhancedError = new Error(categorized.message) as Error & { errorState?: ErrorState };
     enhancedError.errorState = categorized;
@@ -190,40 +152,26 @@ export async function fetchContractEvents(
 ): Promise<ContractEventsApiResponse> {
   const { contractId, page, limit, eventType, category } = options;
 
-  // Build query parameters
-  const queryParams = buildQueryParams({
-    page,
-    limit,
-    eventType,
-    category,
-  });
-
-  const url = `${API_BASE_URL}/api/events/${contractId}?${queryParams.toString()}`;
-
   try {
-    const response = await fetch(url, { signal });
+    const response = await axiosInstance.get<ContractEventsApiResponse>(
+      `/api/events/${contractId}`,
+      {
+        params: {
+          page,
+          limit,
+          eventType,
+          category,
+        },
+        signal,
+      }
+    );
 
-    if (!response.ok) {
-      // Create an error object with response info for categorization
-      const error = new Error(`HTTP ${response.status}`) as Error & {
-        response?: { status: number };
-      };
-      error.response = { status: response.status };
-      throw error;
-    }
-
-    const data: unknown = await response.json();
-    return data as ContractEventsApiResponse;
+    return response.data;
   } catch (error) {
-    // If the request was aborted, rethrow with the expected message
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('The operation was aborted.');
-    }
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'CanceledError') {
       throw new Error('The operation was aborted.');
     }
 
-    // Otherwise, categorize and rethrow
     const categorized = categorizeError(error);
     const enhancedError = new Error(categorized.message) as Error & { errorState?: ErrorState };
     enhancedError.errorState = categorized;

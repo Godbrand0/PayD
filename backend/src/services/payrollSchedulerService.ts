@@ -39,13 +39,16 @@ export class PayrollSchedulerService {
 
     const queue = this.getQueue();
     const jobKey = `schedule-${scheduleId}`;
+    const nextRunAt = PayrollScheduleService.computeNextRunAt(
+      schedule.frequency,
+      schedule.timezone,
+      new Date()
+    );
 
-    const everyMs =
-      schedule.frequency === 'weekly'
-        ? 7 * 24 * 60 * 60 * 1000
-        : schedule.frequency === 'biweekly'
-          ? 14 * 24 * 60 * 60 * 1000
-          : 30 * 24 * 60 * 60 * 1000;
+    const repeat =
+      schedule.frequency === 'biweekly'
+        ? { every: 14 * 24 * 60 * 60 * 1000 }
+        : { pattern: schedule.cron_expression, tz: schedule.timezone };
 
     await queue.add(
       `trigger-schedule-${scheduleId}`,
@@ -55,10 +58,12 @@ export class PayrollSchedulerService {
         scheduledAt: new Date().toISOString(),
       },
       {
-        repeat: { every: everyMs },
+        repeat,
         jobId: jobKey,
       }
     );
+
+    await PayrollScheduleService.updateNextRunAt(schedule.id, nextRunAt);
 
     logger.info(
       `Scheduled payroll job for schedule ${scheduleId} (${schedule.name}) with frequency ${schedule.frequency}`
@@ -178,8 +183,13 @@ export class PayrollSchedulerService {
         organizationId,
       });
 
-      // Record the run
-      await PayrollScheduleService.recordRun(scheduleId);
+    // Record the run
+      const nextRunAt = PayrollScheduleService.computeNextRunAt(
+        schedule.frequency,
+        schedule.timezone,
+        new Date()
+      );
+      await PayrollScheduleService.recordRun(scheduleId, nextRunAt);
 
       logger.info(
         `Triggered scheduled payroll run ${payrollRun.id} for org ${organizationId} (schedule ${scheduleId})`

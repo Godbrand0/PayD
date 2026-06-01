@@ -1,6 +1,7 @@
 import * as csv from 'fast-csv';
 import { Readable } from 'stream';
 import { StrKey } from '@stellar/stellar-sdk';
+import { z } from 'zod';
 import { createEmployeeSchema, CreateEmployeeInput } from '../schemas/employeeSchema.js';
 import { employeeService } from './employeeService.js';
 import { pool } from '../config/database.js';
@@ -16,6 +17,17 @@ export interface CsvRow {
   base_salary?: string;
   base_currency?: string;
 }
+
+const CSV_HEADERS = [
+  'first_name',
+  'last_name',
+  'email',
+  'wallet_address',
+  'position',
+  'department',
+  'base_salary',
+  'base_currency',
+] as const;
 
 export interface ImportError {
   row: number;
@@ -48,7 +60,11 @@ export class CsvPayrollImportService {
 
     return new Promise((resolve, reject) => {
       csv
-        .parseStream(stream, { headers: true })
+        .parseStream(stream, {
+          headers: (headers) => headers.map((header) => header?.trim().toLowerCase()),
+          ignoreEmpty: true,
+          trim: true,
+        })
         .on('error', (error: Error) => reject(error))
         .on('data', (row: CsvRow) => rows.push(row))
         .on('end', async () => {
@@ -68,14 +84,32 @@ export class CsvPayrollImportService {
   ): Promise<ImportResult> {
     const errors: ImportError[] = [];
     const validEmployees: CreateEmployeeInput[] = [];
+    const seenEmails = new Map<string, number>();
 
     rows.forEach((row, index) => {
       const rowNum = index + 2; // +1 for 0-index, +1 for header row
       const rowErrors: string[] = [];
+      const unknownColumns = Object.keys(row).filter(
+        (key) => !CSV_HEADERS.includes(key as (typeof CSV_HEADERS)[number])
+      );
+      const email = row.email?.trim().toLowerCase();
 
       // Basic structure validation
       if (!row.first_name || !row.last_name || !row.email) {
         rowErrors.push('Missing required fields: first_name, last_name, and email are mandatory');
+      }
+
+      if (unknownColumns.length > 0) {
+        rowErrors.push(`Unsupported columns: ${unknownColumns.join(', ')}`);
+      }
+
+      if (email) {
+        const firstSeenRow = seenEmails.get(email);
+        if (firstSeenRow) {
+          rowErrors.push(`Duplicate email in CSV. First seen on row ${firstSeenRow}`);
+        } else {
+          seenEmails.set(email, rowNum);
+        }
       }
 
       // Wallet address validation
@@ -106,10 +140,10 @@ export class CsvPayrollImportService {
           organization_id: organizationId,
           first_name: row.first_name?.trim(),
           last_name: row.last_name?.trim(),
-          email: row.email?.trim(),
+          email,
           wallet_address: row.wallet_address?.trim(),
-          position: row.position,
-          department: row.department,
+          position: row.position?.trim(),
+          department: row.department?.trim(),
           base_salary: salary,
           base_currency: baseCurrency,
           status: 'active',
@@ -118,20 +152,20 @@ export class CsvPayrollImportService {
         if (rowErrors.length === 0) {
           validEmployees.push(validated);
         }
-      } catch (error: any) {
-        if (error.errors) {
-          error.errors.forEach((err: any) =>
-            rowErrors.push(`${err.path.join('.')}: ${err.message}`)
-          );
-        } else {
+      } catch (error: unknown) {
+        if (error instanceof z.ZodError) {
+          error.issues.forEach((err) => rowErrors.push(`${err.path.join('.')}: ${err.message}`));
+        } else if (error instanceof Error) {
           rowErrors.push(error.message);
+        } else {
+          rowErrors.push('Unknown validation error');
         }
       }
 
       if (rowErrors.length > 0) {
         errors.push({
           row: rowNum,
-          email: row.email || 'N/A',
+          email: email || 'N/A',
           errors: rowErrors,
         });
       }

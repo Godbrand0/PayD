@@ -107,6 +107,18 @@ npm start
 npm test
 ```
 
+**API docs**:
+
+```bash
+# Swagger UI
+http://localhost:3001/api-docs
+
+# Raw OpenAPI document
+http://localhost:3001/api/openapi.json
+# Versioned OpenAPI endpoint
+http://localhost:3001/api/v1/openapi.json
+```
+
 **Benchmarks**:
 
 ```bash
@@ -141,9 +153,7 @@ Services (Business Logic)
 
 ### Base URL
 
-```
-http://localhost:3001/api/payroll
-```
+`http://localhost:3001/api/v1/payroll`
 
 ### Payroll Queries
 
@@ -162,18 +172,42 @@ http://localhost:3001/api/payroll
 
 | Endpoint             | Method | Purpose          |
 | -------------------- | ------ | ---------------- |
-| `/api/health`        | GET    | API health check |
+| `/api/v1/health`     | GET    | API v1 health check |
+| `/api/health`        | GET    | Legacy API health check |
 | `/status/health`     | GET    | SDS health check |
 | `/status/rate-limit` | GET    | Rate limit info  |
 | `/cache/stats`       | GET    | Cache statistics |
 | `/cache/clear`       | POST   | Clear cache      |
+
+### FX Rates
+
+| Endpoint               | Method | Purpose                                             |
+| ---------------------- | ------ | --------------------------------------------------- |
+| `/api/v1/rates`        | GET    | Fetch cached ORGUSD/USD-backed fiat rates           |
+| `/api/v1/rates/convert`| GET    | Convert an amount with `amount`, `from`, and `to`   |
+
+Example:
+
+```bash
+curl "http://localhost:3001/api/v1/rates/convert?amount=100&from=ORGUSD&to=KES"
+```
+
+### Notifications
+
+| Endpoint                        | Method | Purpose                                      |
+| ------------------------------- | ------ | -------------------------------------------- |
+| `/api/v1/notifications/payment` | POST   | Trigger email/push notification for payment  |
+| `/api/v1/notifications/history` | GET    | View notification history                    |
+| `/api/v1/notifications/config`  | GET/PUT| View or update organization notification config |
+
+`POST /api/v1/notifications/payment` requires an employer token and accepts `employeeId`, `transactionId`, `transactionHash`, `amount`, `assetCode`, and optional `timestamp`.
 
 ## Query Examples
 
 ### Get Employee Payroll
 
 ```bash
-curl "http://localhost:3001/api/payroll/employees/EMP-001?orgPublicKey=GBXXX&startDate=2024-01-01&endDate=2024-01-31"
+curl "http://localhost:3001/api/v1/payroll/employees/EMP-001?orgPublicKey=GBXXX&startDate=2024-01-01&endDate=2024-01-31"
 ```
 
 Response:
@@ -208,7 +242,7 @@ Response:
 ### Get Audit Report
 
 ```bash
-curl "http://localhost:3001/api/payroll/audit?orgPublicKey=GBXXX&startDate=2024-01-01&endDate=2024-12-31"
+curl "http://localhost:3001/api/v1/payroll/audit?orgPublicKey=GBXXX&startDate=2024-01-01&endDate=2024-12-31"
 ```
 
 Response:
@@ -376,10 +410,16 @@ SDS_RETRY_ATTEMPTS=3
 ENABLE_CACHING=true
 CACHE_TTL=7200000
 LOG_LEVEL=info
+JWT_SECRET=<generate-a-random-32+-char-secret>
+JWT_REFRESH_SECRET=<generate-a-different-random-32+-char-secret>
 ```
+
+Rotate both JWT secrets through your hosting provider's environment variable settings and redeploy the backend so new tokens are issued with the updated keys.
 
 ## Documentation
 
+- Swagger UI is served at `/api-docs`.
+- The generated OpenAPI spec is exposed at `/api/v1/openapi.json` (legacy alias: `/api/openapi.json`) and written to `backend/openapi.json` for client generation.
 - [SDS Integration Guide](./docs/SDS_INTEGRATION.md) - Complete SDS implementation details
 - [Indexing Strategy](./docs/INDEXING_STRATEGY.md) - Technical deep-dive on payroll indexing
 - [Benchmarking Results](./docs/BENCHMARKS.md) - Performance comparison data
@@ -439,7 +479,7 @@ docker-compose logs [service-name]
 
 ```bash
 # Check API health (PostgreSQL + Redis)
-curl http://localhost:3001/api/health
+curl http://localhost:3001/api/v1/health
 
 # Check health
 curl http://localhost:3001/api/payroll/status/health

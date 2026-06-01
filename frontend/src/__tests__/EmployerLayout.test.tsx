@@ -15,6 +15,18 @@ vi.mock('../hooks/useNativeXlmBalance', () => ({
   useNativeXlmBalance: () => ({ data: '10.25', isFetching: false }),
 }));
 
+vi.mock('../hooks/useSocket', () => ({
+  useSocket: () => ({
+    socket: null,
+    connected: false,
+    isPollingFallback: false,
+    subscribeToTransaction: vi.fn(),
+    unsubscribeFromTransaction: vi.fn(),
+    subscribeToBulk: vi.fn(),
+    unsubscribeFromBulk: vi.fn(),
+  }),
+}));
+
 vi.mock('../components/ConnectAccount', () => ({
   default: () => <div data-testid="connect-mock">Connect</div>,
 }));

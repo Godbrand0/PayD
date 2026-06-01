@@ -1,11 +1,13 @@
 [workspace]
 members = [
-"contracts/bulk_payment",
-"contracts/cross_asset_payment",
-"contracts/revenue_split",
-"contracts/vesting_escrow",
-"contracts/asset_path_payment",
-"contracts/smart_wallet",
+    "contracts/bulk_payment",
+    "contracts/cross_asset_payment",
+    "contracts/milestone_escrow",
+    "contracts/orgusd",
+    "contracts/revenue_split",
+    "contracts/vesting_escrow",
+    "contracts/asset_path_payment",
+    "contracts/smart_wallet",
 ]
 resolver = "2"
 

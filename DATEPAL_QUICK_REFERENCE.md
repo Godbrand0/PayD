@@ -89,6 +89,18 @@ Just use your screen reader's normal navigation:
 import { AccessibleDatePicker } from "../components/AccessibleDatePicker";
 ```
 
+### Timezones (Date-only inputs)
+
+The date picker returns a **date-only** string (`YYYY-MM-DD`). Avoid parsing it with `new Date('YYYY-MM-DD')`
+since JavaScript treats that format as **UTC**, which can display as the previous/next day depending on the
+user's timezone.
+
+Use the shared helper instead:
+
+```ts
+import { parseDateString } from "../utils/dateHelpers";
+```
+
 ### Basic Usage
 
 ```tsx

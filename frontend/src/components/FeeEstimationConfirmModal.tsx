@@ -264,12 +264,23 @@ export const FeeEstimationConfirmModal: React.FC<FeeEstimationConfirmModalProps>
     onConfirm();
   }, [onConfirm]);
 
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onCancel();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
       {/* Backdrop overlay */}
-      <div className={styles.backdrop} onClick={onCancel} role="presentation" aria-hidden="true" />
+      <div
+        className={styles.backdrop}
+        onClick={handleBackdropClick}
+        role="presentation"
+        aria-hidden="true"
+      />
 
       {/* Modal dialog */}
       <div

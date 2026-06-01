@@ -17,16 +17,16 @@ _Focuses on asset issuance, trustlines, payment batching, and Soroban logic._
 
 | ID   | Issue Title                                                                               | Difficulty | Status  |
 | :--- | :---------------------------------------------------------------------------------------- | :--------: | :-----: |
-| #001 | [Issue ORGUSD Custom Asset on Stellar Testnet](docs/issues/001-issue-orgusd-asset.md)     |   ● HARD   | ⏳ TODO |
-| #002 | [Implement Trustline Acceptance Flow](docs/issues/002-trustline-flow.md)                  |  ● MEDIUM  | ⏳ TODO |
-| #003 | [Build Bulk Payment Transaction Batching](docs/issues/003-bulk-payment-batching.md)       |   ● HARD   | ⏳ TODO |
+| #001 | [Issue ORGUSD Custom Asset on Stellar Testnet](docs/issues/001-issue-orgusd-asset.md)     |   ● HARD   | ✅ DONE |
+| #002 | [Implement Trustline Acceptance Flow](docs/issues/002-trustline-flow.md)                  |  ● MEDIUM  | ✅ DONE |
+| #003 | [Build Bulk Payment Transaction Batching](docs/issues/003-bulk-payment-batching.md)       |   ● HARD   | ✅ DONE |
 | #004 | [Set Up Horizon Client & Config](docs/issues/004-horizon-client-setup.md)                 |   ● EASY   | ⏳ TODO |
 | #005 | [Integrate Anchor SEP-24 Protocol](docs/issues/005-sep-24-integration.md)                 |   ● HARD   | ⏳ TODO |
 | #006 | [Implement Stellar Wallet Kit Integration](docs/issues/006-wallet-kit-integration.md)     |  ● MEDIUM  | ⏳ TODO |
 | #007 | [Build On-Chain Tx Verification & Logging](docs/issues/007-tx-verification-logging.md)    |  ● MEDIUM  | ⏳ TODO |
-| #008 | [Implement Account Balance Preflight Checks](docs/issues/008-balance-preflight-checks.md) |   ● EASY   | ⏳ TODO |
-| #009 | [Design Soroban Smart Contract](docs/issues/009-soroban-escrow-contract.md)               |   ● HARD   | ⏳ TODO |
-| #010 | [Write Stellar Tx Signing Unit Tests](docs/issues/010-stellar-signing-tests.md)           |  ● MEDIUM  | ⏳ TODO |
+| #008 | [Implement Account Balance Preflight Checks](docs/issues/008-balance-preflight-checks.md) |   ● EASY   | ✅ DONE |
+| #009 | [Design Soroban Smart Contract](docs/issues/009-soroban-escrow-contract.md)               |   ● HARD   | ✅ DONE |
+| #010 | [Write Stellar Tx Signing Unit Tests](docs/issues/010-stellar-signing-tests.md)           |  ● MEDIUM  | ✅ DONE |
 | #031 | [Multi-Sig for Issuer Account](docs/issues/031-multi-sig-issuer.md)                       |   ● HARD   | ⏳ TODO |
 | #032 | [Clawback Support for ORGUSD](docs/issues/032-clawback-support.md)                        |  ● MEDIUM  | ⏳ TODO |
 | #033 | [Revenue Split Logic via Soroban](docs/issues/033-soroban-revenue-split.md)               |   ● HARD   | ⏳ TODO |
@@ -39,7 +39,7 @@ _Focuses on asset issuance, trustlines, payment batching, and Soroban logic._
 | #040 | [Claimable Balances for Unregistered Users](docs/issues/040-claimable-balances.md)        |  ● MEDIUM  | ⏳ TODO |
 | #041 | [Transaction Simulation for Validation](docs/issues/041-tx-simulation.md)                 |  ● MEDIUM  | ⏳ TODO |
 | #042 | [Ledger Observer for Real-time Events](docs/issues/042-ledger-observer.md)                |   ● HARD   | ⏳ TODO |
-| #043 | [SEP-31 Cross-Asset Payments](docs/issues/043-sep-31-payments.md)                         |   ● HARD   | ⏳ TODO |
+| #043 | [SEP-31 Cross-Asset Payments](docs/issues/043-sep-31-payments.md)                         |   ● HARD   | ✅ DONE |
 | #086 | [Implement Contract State Archival Strategy](docs/issues/086-archival-strategy.md)        |   ● HARD   | ⏳ TODO |
 | #087 | [Optimize Gas Fees for Bulk Execution](docs/issues/087-gas-optimization.md)               |  ● MEDIUM  | ⏳ TODO |
 | #088 | [Implement Account-Level Transaction Limits](docs/issues/088-tx-limits.md)                |  ● MEDIUM  | ⏳ TODO |
@@ -60,9 +60,9 @@ _Focuses on project structure, database schema, payroll scheduling, and API logi
 | ID   | Issue Title                                                                                           | Difficulty | Status  |
 | :--- | :---------------------------------------------------------------------------------------------------- | :--------: | :-----: |
 | #011 | [Set Up Express.js Project Structure](docs/issues/011-express-ts-setup.md)                            |  ● MEDIUM  | ⏳ TODO |
-| #012 | [Design & Migrate PostgreSQL Schema](docs/issues/012-db-schema-migrations.md)                         |  ● MEDIUM  | ⏳ TODO |
-| #013 | [Build Payroll Scheduling Engine](docs/issues/013-payroll-scheduler.md)                               |   ● HARD   | ⏳ TODO |
-| #014 | [Implement JWT Auth & RBAC](docs/issues/014-jwt-rbac-auth.md)                                         |   ● EASY   | ⏳ TODO |
+| #012 | [Design & Migrate PostgreSQL Schema](docs/issues/012-db-schema-migrations.md)                         |  ● MEDIUM  | ✅ DONE |
+| #013 | [Build Payroll Scheduling Engine](docs/issues/013-payroll-scheduler.md)                               |   ● HARD   | ✅ DONE |
+| #014 | [Implement JWT Auth & RBAC](docs/issues/014-jwt-rbac-auth.md)                                         |   ● EASY   | ✅ DONE |
 | #015 | [Build CSV Bulk Import Parser & Validator](docs/issues/015-csv-importer.md)                           |   ● HARD   | ⏳ TODO |
 | #016 | [Integrate FX Rate API](docs/issues/016-fx-rate-api.md)                                               |  ● MEDIUM  | ⏳ TODO |
 | #017 | [Build Employee CRUD API Endpoints](docs/issues/017-employee-crud-api.md)                             |   ● EASY   | ⏳ TODO |
@@ -71,7 +71,7 @@ _Focuses on project structure, database schema, payroll scheduling, and API logi
 | #020 | [Dockerize Backend Service](docs/issues/020-docker-setup.md)                                          |   ● EASY   | ⏳ TODO |
 | #044 | [OAuth2 Social Login Integration](docs/issues/044-oauth2-social-login.md)                             |  ● MEDIUM  | ⏳ TODO |
 | #045 | [Multi-tenant Architecture Support](docs/issues/045-multi-tenant-architecture.md)                     |   ● HARD   | ⏳ TODO |
-| #046 | [Two-Factor Authentication (2FA)](docs/issues/046-2fa-support.md)                                     |  ● MEDIUM  | ⏳ TODO |
+| #046 | [Two-Factor Authentication (2FA)](docs/issues/046-2fa-support.md)                                     |  ● MEDIUM  | ✅ DONE |
 | #047 | [Data Export System (PDF/Excel)](docs/issues/047-data-export-system.md)                               |  ● MEDIUM  | ⏳ TODO |
 | #048 | [Webhook System for Integrations](docs/issues/048-webhook-system.md)                                  |   ● HARD   | ⏳ TODO |
 | #049 | [Support for Performance Bonuses](docs/issues/049-performance-bonuses.md)                             |   ● EASY   | ⏳ TODO |
@@ -82,7 +82,7 @@ _Focuses on project structure, database schema, payroll scheduling, and API logi
 | #054 | [API Rate Limiting](docs/issues/054-api-rate-limiting.md)                                             |   ● EASY   | ⏳ TODO |
 | #055 | [Health Dashboard API](docs/issues/055-health-api.md)                                                 |   ● EASY   | ⏳ TODO |
 | #056 | [Custom Tax Calculations Support](docs/issues/056-tax-calculations.md)                                |  ● MEDIUM  | ⏳ TODO |
-| #077 | [Contract Event Indexer Service](docs/issues/077-contract-event-indexer.md)                           |   ● HARD   | ⏳ TODO |
+| #077 | [Contract Event Indexer Service](docs/issues/077-contract-event-indexer.md)                           |   ● HARD   | ✅ DONE |
 | #078 | [Contract Address Registry API](docs/issues/078-contract-address-registry-api.md)                     |  ● MEDIUM  | ⏳ TODO |
 | #079 | [Preflight Balance Check Service](docs/issues/079-preflight-balance-check.md)                         |  ● MEDIUM  | ⏳ TODO |
 | #080 | [Transaction History Backend Integration](docs/issues/080-transaction-history-backend-integration.md) |  ● MEDIUM  | ⏳ TODO |
@@ -102,10 +102,10 @@ _Focuses on dashboard layout, wallet connection, management UI, and analytics._
 | ID   | Issue Title                                                                               | Difficulty | Status  |
 | :--- | :---------------------------------------------------------------------------------------- | :--------: | :-----: |
 | #021 | [Scaffold React 19 + Vite Project](docs/issues/021-react-vite-setup.md)                   |  ● MEDIUM  | ⏳ TODO |
-| #022 | [Build Employer Dashboard Layout](docs/issues/022-dashboard-layout.md)                    |   ● EASY   | ⏳ TODO |
-| #023 | [Implement Wallet Connect Flow](docs/issues/023-wallet-connect-ui.md)                     |   ● HARD   | ⏳ TODO |
+| #022 | [Build Employer Dashboard Layout](docs/issues/022-dashboard-layout.md)                    |   ● EASY   | ✅ DONE |
+| #023 | [Implement Wallet Connect Flow](docs/issues/023-wallet-connect-ui.md)                     |   ● HARD   | ✅ DONE |
 | #024 | [Build Employee Management Table](docs/issues/024-employee-table-ui.md)                   |  ● MEDIUM  | ⏳ TODO |
-| #025 | [Build CSV Upload UI](docs/issues/025-csv-upload-ui.md)                                   |  ● MEDIUM  | ⏳ TODO |
+| #025 | [Build CSV Upload UI](docs/issues/025-csv-upload-ui.md)                                   |  ● MEDIUM  | ✅ DONE |
 | #026 | [Build Payroll Analytics Dashboard](docs/issues/026-analytics-dashboard.md)               |   ● HARD   | ⏳ TODO |
 | #027 | [Build Employee Portal History View](docs/issues/027-employee-portal.md)                  |   ● EASY   | ⏳ TODO |
 | #028 | [Implement QR Code Onboarding](docs/issues/028-employee-onboarding-ui.md)                 |  ● MEDIUM  | ⏳ TODO |

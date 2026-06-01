@@ -3,7 +3,7 @@
 use soroban_sdk::{
     Bytes, BytesN, Env, String, Vec,
     auth::{Context, CustomAccountInterface},
-    contract, contracterror, contractimpl, contracttype,
+    contract, contracterror, contractevent, contractimpl, contracttype,
     crypto::Hash,
 };
 
@@ -18,6 +18,36 @@ pub enum WalletError {
     UnknownSigner = 5,
     InvalidSignature = 6,
     NotEnoughSignatures = 7,
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+/// Emitted when the wallet is initialized with its signer set.
+#[contractevent]
+pub struct WalletInitializedEvent {
+    pub signer_count: u32,
+    pub threshold: u32,
+}
+
+/// Emitted when a new signer is added to the wallet.
+#[contractevent]
+pub struct SignerAddedEvent {
+    pub added: SignerKey,
+    pub total_signers: u32,
+}
+
+/// Emitted when a signer is removed from the wallet.
+#[contractevent]
+pub struct SignerRemovedEvent {
+    pub removed: SignerKey,
+    pub total_signers: u32,
+}
+
+/// Emitted when the signing threshold is changed.
+#[contractevent]
+pub struct ThresholdChangedEvent {
+    pub old_threshold: u32,
+    pub new_threshold: u32,
 }
 
 #[contracttype]
@@ -91,6 +121,12 @@ impl SmartWalletContract {
         env.storage()
             .instance()
             .set(&DataKey::Threshold, &threshold);
+
+        WalletInitializedEvent {
+            signer_count: signers.len(),
+            threshold,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -110,11 +146,97 @@ impl SmartWalletContract {
         env.current_contract_address().require_auth();
 
         let signers = Self::load_signers(&env)?;
+        let old_threshold = Self::load_threshold(&env)?;
         Self::validate_threshold(&signers, threshold)?;
 
         env.storage()
             .instance()
             .set(&DataKey::Threshold, &threshold);
+
+        ThresholdChangedEvent {
+            old_threshold,
+            new_threshold: threshold,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Adds a new signer key to the wallet. The new key must not duplicate an
+    /// existing signer. Requires the contract account to authorise (i.e. the
+    /// current threshold of existing signers must sign this call).
+    pub fn add_signer(env: Env, new_signer: SignerKey) -> Result<(), WalletError> {
+        env.current_contract_address().require_auth();
+
+        let mut signers = Self::load_signers(&env)?;
+
+        // Reject duplicates
+        let mut i = 0u32;
+        while i < signers.len() {
+            let s = signers.get(i).ok_or(WalletError::NotInitialized)?;
+            if s == new_signer {
+                return Err(WalletError::DuplicateSigner);
+            }
+            i += 1;
+        }
+
+        signers.push_back(new_signer.clone());
+        env.storage().instance().set(&DataKey::Signers, &signers);
+
+        SignerAddedEvent {
+            added: new_signer,
+            total_signers: signers.len(),
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Removes an existing signer key from the wallet. Panics if removing the
+    /// signer would leave fewer signers than the current threshold. Requires
+    /// the contract account to authorise.
+    pub fn remove_signer(env: Env, signer: SignerKey) -> Result<(), WalletError> {
+        env.current_contract_address().require_auth();
+
+        let signers = Self::load_signers(&env)?;
+        let threshold = Self::load_threshold(&env)?;
+
+        // Locate the signer to remove
+        let mut found_index: Option<u32> = None;
+        let mut i = 0u32;
+        while i < signers.len() {
+            let s = signers.get(i).ok_or(WalletError::NotInitialized)?;
+            if s == signer {
+                found_index = Some(i);
+                break;
+            }
+            i += 1;
+        }
+
+        let idx = found_index.ok_or(WalletError::UnknownSigner)?;
+
+        // Must still satisfy threshold after removal
+        if signers.len() - 1 < threshold {
+            return Err(WalletError::InvalidThreshold);
+        }
+
+        let mut new_signers: Vec<SignerKey> = Vec::new(&env);
+        let mut j = 0u32;
+        while j < signers.len() {
+            if j != idx {
+                let s = signers.get(j).ok_or(WalletError::NotInitialized)?;
+                new_signers.push_back(s);
+            }
+            j += 1;
+        }
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Signers, &new_signers);
+
+        SignerRemovedEvent {
+            removed: signer,
+            total_signers: new_signers.len(),
+        }
+        .publish(&env);
         Ok(())
     }
 

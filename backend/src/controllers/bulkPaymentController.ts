@@ -36,6 +36,11 @@ export class BulkPaymentController {
       }
 
       const { sourceSecret, payments, assetCode, assetIssuer, feeBumpFeePerOp } = parsed.data;
+      const organizationId = req.organizationId ?? req.user?.organizationId ?? null;
+
+      if (!organizationId) {
+        return res.status(403).json({ error: 'Organization context is required.' });
+      }
 
       let sourceKeypair: Keypair;
       try {
@@ -51,7 +56,7 @@ export class BulkPaymentController {
       }
 
       const result = await BulkPaymentService.submitBatch(sourceKeypair, payments, {
-        organizationId: req.user?.organizationId ?? undefined,
+        organizationId,
         assetCode,
         assetIssuer,
         feeBumpFeePerOp,
@@ -74,9 +79,19 @@ export class BulkPaymentController {
   static async getBatchStatus(req: Request, res: Response) {
     try {
       const { batchId } = req.params;
-      const result = await BulkPaymentService.getBatchStatus(batchId as string);
+      const organizationId = req.organizationId ?? req.user?.organizationId ?? null;
+      const result = await BulkPaymentService.getBatchStatus(batchId as string, organizationId ?? undefined);
 
       if (!result) {
+        if (organizationId) {
+          const existing = await BulkPaymentService.getBatchStatus(batchId as string);
+          if (existing) {
+            return res
+              .status(403)
+              .json({ error: 'Access denied: batch does not belong to your organization.' });
+          }
+        }
+
         return res.status(404).json({ error: 'Batch not found.' });
       }
 

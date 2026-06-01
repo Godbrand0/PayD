@@ -42,20 +42,35 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   return (
     <div
-      className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden bg-gray-300 flex items-center justify-center shrink-0`}
+      className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden flex items-center justify-center shrink-0 ring-2 ring-offset-1 transition-all`}
+      style={{
+        backgroundColor: 'var(--surface-hi)',
+        ringColor: 'var(--border)',
+        ringOffsetColor: 'var(--bg)',
+      }}
       title={name}
+      role="img"
+      aria-label={name}
     >
       {!hasImageError ? (
         <img
           src={avatarUrl}
           alt={name}
+          loading="lazy"
           className="w-full h-full object-cover"
           onError={() => {
             setHasImageError(true);
           }}
         />
       ) : (
-        <span className="w-full h-full bg-linear-to-br from-blue-400 to-blue-600 text-white font-semibold flex items-center justify-center">
+        <span
+          className="w-full h-full text-white font-semibold flex items-center justify-center"
+          style={{
+            background: `linear-gradient(135deg, var(--accent), hsl(${Math.abs(
+              name.charCodeAt(0) * 12
+            )} 70% 50%))`,
+          }}
+        >
           {initials || '?'}
         </span>
       )}

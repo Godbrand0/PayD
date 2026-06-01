@@ -1,12 +1,27 @@
 import crypto from 'crypto';
 import { config } from '../config/env.js';
 
+/**
+ * Payload structure for the export download token.
+ * Supports either single receipt or full payroll batch exports.
+ */
 export type ExportTokenPayload =
-  | { kind: 'receipt'; txHash: string; exp: number }
+  | { 
+      /** Discriminator for receipt export. */
+      kind: 'receipt'; 
+      /** The transaction hash associated with the receipt. */
+      txHash: string; 
+      /** Expiration timestamp in seconds. */
+      exp: number 
+    }
   | {
+      /** Discriminator for payroll export. */
       kind: 'payroll';
+      /** The public key of the organization owning the payroll. */
       organizationPublicKey: string;
+      /** The unique identifier of the payroll batch. */
       batchId: string;
+      /** Expiration timestamp in seconds. */
       exp: number;
     };
 

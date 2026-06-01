@@ -11,9 +11,12 @@
  */
 
 export interface PasswordValidationResult {
+  /** Whether the password satisfies all complexity requirements. */
   valid: boolean;
+  /** Human-readable list of requirement violations; empty when `valid` is `true`. */
   errors: string[];
-  score: number; // 0–4 (weak → very strong)
+  /** Strength score in the range 0–4 (0 = very weak, 4 = very strong). */
+  score: number;
 }
 
 const SPECIAL_CHARS = '!@#$%^&*()_+-=[]{}|;\':",.<>?/`~\\';
@@ -79,7 +82,13 @@ export function validatePasswordStrength(
   };
 }
 
-/** Human-readable label for a password score. */
+/**
+ * Returns a human-readable label for a numeric password strength score.
+ *
+ * @param score - Numeric score in the range 0–4 (as returned by {@link validatePasswordStrength})
+ * @returns A label such as `'Very Weak'`, `'Weak'`, `'Fair'`, `'Strong'`, or `'Very Strong'`.
+ *          Returns `'Unknown'` for out-of-range values.
+ */
 export function scoreLabel(score: number): string {
   return ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'][score] ?? 'Unknown';
 }

@@ -1,5 +1,6 @@
 import { getRedisClient } from './rateLimitService.js';
 import logger from '../utils/logger.js';
+import { withRetry } from '../utils/retry.js';
 
 export const FX_RATES_CACHE_KEY = 'payd:fx:rates:orgusd';
 export const FX_RATES_CACHE_TTL_SEC = 300;
@@ -13,10 +14,25 @@ export interface OrgUsdRatesPayload {
   cacheTtlSeconds: number;
 }
 
+export interface ConversionResult {
+  from: string;
+  to: string;
+  amount: number;
+  convertedAmount: number;
+  rate: number;
+  fetchedAt: string;
+  provider: string;
+}
+
 const memoryFallback: { payload: OrgUsdRatesPayload | null; expiresAt: number } = {
   payload: null,
   expiresAt: 0,
 };
+
+export function clearFxRateMemoryCache(): void {
+  memoryFallback.payload = null;
+  memoryFallback.expiresAt = 0;
+}
 
 function normalizeRates(rates: Record<string, number>): Record<string, number> {
   const out: Record<string, number> = { USD: 1, ORGUSD: 1 };
@@ -77,13 +93,13 @@ async function fetchCoinbase(): Promise<Record<string, number>> {
 
 async function fetchLiveRates(): Promise<{ rates: Record<string, number>; provider: string }> {
   try {
-    const rates = await fetchOpenErApi();
+    const rates = await withRetry(() => fetchOpenErApi());
     return { rates, provider: 'open.er-api.com' };
   } catch (primaryErr) {
     logger.warn('FX primary provider failed, trying Coinbase', {
       error: (primaryErr as Error).message,
     });
-    const rates = await fetchCoinbase();
+    const rates = await withRetry(() => fetchCoinbase());
     return { rates, provider: 'api.coinbase.com' };
   }
 }
@@ -135,4 +151,40 @@ export async function getOrgUsdRates(): Promise<OrgUsdRatesPayload> {
     }
     throw error;
   }
+}
+
+export async function convertOrgUsdAmount(
+  amount: number,
+  from: string,
+  to: string
+): Promise<ConversionResult> {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error('Amount must be a non-negative number');
+  }
+
+  const normalizedFrom = from.trim().toUpperCase();
+  const normalizedTo = to.trim().toUpperCase();
+  const payload = await getOrgUsdRates();
+  const fromRate = payload.rates[normalizedFrom];
+  const toRate = payload.rates[normalizedTo];
+
+  if (!fromRate) {
+    throw new Error(`Unsupported source currency: ${normalizedFrom}`);
+  }
+
+  if (!toRate) {
+    throw new Error(`Unsupported target currency: ${normalizedTo}`);
+  }
+
+  const rate = toRate / fromRate;
+
+  return {
+    from: normalizedFrom,
+    to: normalizedTo,
+    amount,
+    convertedAmount: Number((amount * rate).toFixed(6)),
+    rate,
+    fetchedAt: payload.fetchedAt,
+    provider: payload.provider,
+  };
 }

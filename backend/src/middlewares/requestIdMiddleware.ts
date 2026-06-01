@@ -26,6 +26,7 @@ export const requestIdMiddleware = (req: Request, res: Response, next: NextFunct
   const requestId = extractRequestId(req.headers[REQUEST_ID_HEADER]);
 
   req.requestId = requestId;
+  (req as any).id = requestId;
   res.setHeader(REQUEST_ID_HEADER, requestId);
 
   requestContext.run({ requestId }, () => next());

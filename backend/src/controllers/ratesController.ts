@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getOrgUsdRates } from '../services/fxRateService.js';
+import { convertOrgUsdAmount, getOrgUsdRates } from '../services/fxRateService.js';
 
 export class RatesController {
   /**
@@ -14,6 +14,44 @@ export class RatesController {
       res.status(502).json({
         error: 'Bad Gateway',
         message: 'Unable to load exchange rates from upstream providers.',
+      });
+    }
+  }
+
+  /**
+   * GET /rates/convert?amount=100&from=ORGUSD&to=KES
+   */
+  static async convert(req: Request, res: Response): Promise<void> {
+    try {
+      const amount = Number(req.query.amount);
+      const from = String(req.query.from || 'ORGUSD');
+      const to = String(req.query.to || '');
+
+      if (!to) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'Query parameter "to" is required.',
+        });
+        return;
+      }
+
+      if (!Number.isFinite(amount) || amount < 0) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'Query parameter "amount" must be a non-negative number.',
+        });
+        return;
+      }
+
+      const data = await convertOrgUsdAmount(amount, from, to);
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to convert amount.';
+      const statusCode = message.startsWith('Unsupported') ? 400 : 502;
+      res.status(statusCode).json({
+        error: statusCode === 400 ? 'Bad Request' : 'Bad Gateway',
+        message,
       });
     }
   }

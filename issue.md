@@ -1,13 +1,13 @@
-#472 #175: Document Contract Storage Layout
+#409  Consolidate API Request Error Handling
 Repo Avatar
 Gildado/PayD
-#175: Document Contract Storage Layout
-Category: [CONTRACT]
+ Consolidate API Request Error Handling
+Category: [FRONTEND]
 Difficulty: MEDIUM
-Tags: docs, soroban
+Tags: logic, refactor, api
 
 Description
-Provide a detailed map of the contract's instance, persistent, and temporary storage footprints.
+Create a central error interpreter for Axios/Fetch to handle common HTTP errors consistently.
 
 Acceptance Criteria
  Implement the described feature/fix.
@@ -15,16 +15,16 @@ Acceptance Criteria
  Add relevant unit or integration tests.
  Update documentation where necessary.
 
- #469 #172: Add Wallet Connection Timeout Logic
+#347 Refine Button Hover/Active States
 Repo Avatar
 Gildado/PayD
-#172: Add Wallet Connection Timeout Logic
+Refine Button Hover/Active States
 Category: [FRONTEND]
 Difficulty: LOW
-Tags: ux, stellar
+Tags: ui, ux, buttons
 
 Description
-Show an error if the connection to Freighter or Albedo takes longer than 15 seconds.
+Standardize hover and active states across all primary and secondary buttons to follow the Stellar Design System guidelines.
 
 Acceptance Criteria
  Implement the described feature/fix.
@@ -32,33 +32,33 @@ Acceptance Criteria
  Add relevant unit or integration tests.
  Update documentation where necessary.
 
-#466 #169: Implement Payout Simulation Preflight
+#346 Implement Webhook Notification System
 Repo Avatar
 Gildado/PayD
-#169: Implement Payout Simulation Preflight
-Category: [FRONTEND]
+Implement Webhook Notification System
+Category: [BACKEND]
+Difficulty: ● HARD
+Tags: webhooks, integration, notifications, api, architecture
+
+Description
+Implement a webhook system that notifies external third-party services when significant events occur in the PayD platform (e.g., payroll.completed, employee.added, balance.low). This allows organizations to build their own custom automation workflows.
+
+Acceptance Criteria
+ Implement a webhook subscription API for organizations.
+ Build a "Retry and Backoff" strategy for failed webhook deliveries.
+ Secure delivery with signed payloads (HMAC).
+ Provide a web UI for developers to view delivery logs and test endpoints.
+
+#408 Technical Whitepaper for PayD Protocol
+Repo Avatar
+Gildado/PayD
+Technical Whitepaper for PayD Protocol
+Category: [DOCS]
 Difficulty: HARD
-Tags: ux, stellar
+Tags: docs, whitepaper
 
 Description
-Use simulateTransaction to check if a payout will succeed before prompting for a signature.
-
-Acceptance Criteria
- Implement the described feature/fix.
- Ensure full responsiveness and accessibility.
- Add relevant unit or integration tests.
- Update documentation where necessary.
-
-#467 #170: Add 'Network Switcher' Support in UI
-Repo Avatar
-Gildado/PayD
-#170: Add 'Network Switcher' Support in UI
-Category: [FRONTEND]
-Difficulty: MEDIUM
-Tags: ui, stellar
-
-Description
-Allow developers to switch between Testnet and Mainnet for testing purposes.
+Draft a high-level PDF/Markdown explaining the cross-border payment architecture on Stellar.
 
 Acceptance Criteria
  Implement the described feature/fix.

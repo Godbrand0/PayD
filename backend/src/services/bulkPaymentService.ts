@@ -143,6 +143,20 @@ export class BulkPaymentService {
           envelopeResult.error = err.message;
           failedItems += chunk.length;
           await this.updateEnvelopeItems(batchId, i, 'failed', undefined, err.message);
+
+          const remainingEnvelopes = envelopes.slice(i + 1);
+          if (remainingEnvelopes.length > 0) {
+            await this.failRemainingEnvelopes(
+              batchId,
+              remainingEnvelopes,
+              i + 1,
+              'Batch rolled back after an earlier envelope failure.'
+            );
+            failedItems += remainingEnvelopes.reduce((sum, remainingChunk) => sum + remainingChunk.length, 0);
+          }
+
+          results.push(envelopeResult);
+          break;
         }
       }
 
@@ -213,8 +227,6 @@ export class BulkPaymentService {
     assetIssuer: string | undefined,
     organizationId: number | undefined
   ): Promise<string> {
-    const envelopes = this.chunk(items, MAX_OPS_PER_ENVELOPE);
-
     const batchResult = await pool.query(
       `INSERT INTO bulk_payment_batches
          (source_account, organization_id, total_items, asset_code, asset_issuer, status)
@@ -258,6 +270,18 @@ export class BulkPaymentService {
     );
   }
 
+  private static async failRemainingEnvelopes(
+    batchId: string,
+    remainingEnvelopes: BulkPaymentItem[][],
+    startEnvelopeIndex: number,
+    errorMessage: string
+  ): Promise<void> {
+    for (let offset = 0; offset < remainingEnvelopes.length; offset++) {
+      const envelopeIndex = startEnvelopeIndex + offset;
+      await this.updateEnvelopeItems(batchId, envelopeIndex, 'failed', undefined, errorMessage);
+    }
+  }
+
   private static async finalizeBatch(
     batchId: string,
     successfulItems: number,
@@ -272,13 +296,19 @@ export class BulkPaymentService {
     );
   }
 
-  static async getBatchStatus(batchId: string): Promise<{
+  static async getBatchStatus(
+    batchId: string,
+    organizationId?: number
+  ): Promise<{
     batch: Record<string, unknown>;
     items: Record<string, unknown>[];
   } | null> {
-    const batchResult = await pool.query('SELECT * FROM bulk_payment_batches WHERE batch_id = $1', [
-      batchId,
-    ]);
+    const batchResult = await pool.query(
+      `SELECT * FROM bulk_payment_batches
+       WHERE batch_id = $1
+       AND ($2::int IS NULL OR organization_id = $2)`,
+      [batchId, organizationId ?? null]
+    );
     if (batchResult.rows.length === 0) return null;
 
     const itemsResult = await pool.query(

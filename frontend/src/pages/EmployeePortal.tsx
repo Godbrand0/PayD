@@ -25,23 +25,25 @@ import {
 import { claimService, ClaimableBalance } from '../services/claimableBalance';
 import styles from './EmployeePortal.module.css';
 import { useWallet } from '../hooks/useWallet';
+import { useAuth } from '../providers/useAuth';
 
 /* ── Pending Claims Section ──────── */
 function PendingClaimsSection() {
-  const { address } = useWallet();
+  const { user } = useAuth();
   const [pendingClaims, setPendingClaims] = React.useState<ClaimableBalance[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [showInstructions, setShowInstructions] = React.useState<Record<number, string>>({});
 
   React.useEffect(() => {
-    if (!address) {
+    const employeeId = Number(user?.id);
+    if (!Number.isFinite(employeeId) || employeeId <= 0) {
       setIsLoading(false);
       return;
     }
 
     const loadClaims = async () => {
       try {
-        const result = await claimService.getEmployeeClaims(Number(address), { limit: 100 });
+        const result = await claimService.getEmployeeClaims(employeeId, { limit: 100 });
         const pending = result.data.filter((c) => c.status === 'pending');
         setPendingClaims(pending);
       } catch (err) {
@@ -52,7 +54,7 @@ function PendingClaimsSection() {
     };
 
     void loadClaims();
-  }, [address]);
+  }, [user?.id]);
 
   const handleShowInstructions = async (claim: ClaimableBalance) => {
     const instructions = await claimService.generateClaimInstructions(
@@ -351,6 +353,7 @@ const EmployeePortal: React.FC = () => {
               <input
                 type="text"
                 placeholder="Search tx hash, memo…"
+                aria-label="Search payment history"
                 className={styles.searchInput}
                 style={{ paddingLeft: 28 }}
                 value={searchQuery}
@@ -360,6 +363,7 @@ const EmployeePortal: React.FC = () => {
 
             <select
               className={styles.filterSelect}
+              aria-label="Filter payment history by status"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -371,6 +375,7 @@ const EmployeePortal: React.FC = () => {
 
             <select
               className={styles.filterSelect}
+              aria-label="Filter payment history by type"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
             >
@@ -382,6 +387,7 @@ const EmployeePortal: React.FC = () => {
 
             <button
               className={styles.refreshBtn}
+              aria-label="Refresh payment history"
               onClick={() => void refreshData()}
               disabled={isLoading}
             >
@@ -486,6 +492,7 @@ const EmployeePortal: React.FC = () => {
               className={styles.pageBtn}
               onClick={() => setCurrentPage(currentPage - 1)}
               disabled={currentPage <= 1}
+              aria-label="Previous page"
             >
               ‹
             </button>
@@ -494,6 +501,8 @@ const EmployeePortal: React.FC = () => {
                 key={p}
                 className={`${styles.pageBtn} ${p === currentPage ? styles.pageBtnActive : ''}`}
                 onClick={() => setCurrentPage(p)}
+                aria-label={`Page ${p}`}
+                aria-current={p === currentPage ? 'page' : undefined}
               >
                 {p}
               </button>
@@ -502,6 +511,7 @@ const EmployeePortal: React.FC = () => {
               className={styles.pageBtn}
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
+              aria-label="Next page"
             >
               ›
             </button>

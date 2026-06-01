@@ -25,7 +25,7 @@ describe('EmployeeService', () => {
   const mockPool = pool as unknown as jest.Mocked<Pool>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     employeeService = new EmployeeService();
   });
 
@@ -35,7 +35,7 @@ describe('EmployeeService', () => {
       first_name: 'John',
       last_name: 'Doe',
       email: 'john@example.com',
-      wallet_address: 'GABC123',
+      wallet_address: 'GDRBQQEIW4URY57F2TRUQSCSUVVR3D7PJQQDXR23AXSEMDMASAW2V6VB',
       position: 'Dev',
       department: 'IT',
       status: 'active' as const,
@@ -120,6 +120,18 @@ describe('EmployeeService', () => {
       expect(result.withdrawal_preference).toBe('mobile_money');
       expect(result.mobile_money_provider).toBe('M-Pesa');
     });
+
+    it('should throw error for invalid Stellar wallet address', async () => {
+      const invalidData = {
+        ...mockEmployeeData,
+        wallet_address: 'invalid-address',
+      };
+
+      await expect(employeeService.create(invalidData)).rejects.toThrow(
+        'Invalid Stellar wallet address: invalid-address'
+      );
+      expect(mockPool.query).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -156,14 +168,13 @@ describe('EmployeeService', () => {
       );
     });
 
-    it('should search across profile fields including job_title and phone', async () => {
+    it('should search across profile fields including job_title and phone via search_vector', async () => {
       (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
 
       await employeeService.findAll(1, { search: 'engineer', page: 1, limit: 10 });
 
       const calledQuery = (mockPool.query as jest.Mock).mock.calls[0][0];
-      expect(calledQuery).toContain('job_title ILIKE');
-      expect(calledQuery).toContain('phone ILIKE');
+      expect(calledQuery).toContain('search_vector @@');
     });
 
     it('should apply full-text search when q is provided', async () => {
@@ -290,6 +301,15 @@ describe('EmployeeService', () => {
     it('should return null if no fields provided', async () => {
       const result = await employeeService.update(1, 1, {});
       expect(result).toBeNull();
+      expect(mockPool.query).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for invalid Stellar wallet address on update', async () => {
+      const invalidData = { wallet_address: 'invalid-address' };
+
+      await expect(employeeService.update(1, 1, invalidData)).rejects.toThrow(
+        'Invalid Stellar wallet address: invalid-address'
+      );
       expect(mockPool.query).not.toHaveBeenCalled();
     });
   });

@@ -1,12 +1,9 @@
 import React, { useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { NotificationContext } from '../hooks/useNotification';
+import { getTxExplorerUrl } from '../utils/stellarExpert';
 
-const txExplorerBase =
-  (import.meta.env.VITE_STELLAR_EXPLORER_TX_URL as string | undefined) ||
-  'https://stellar.expert/explorer/testnet/tx/';
-
-const buildTxExplorerLink = (txHash: string) => `${txExplorerBase}${txHash}`;
+const buildTxExplorerLink = (txHash: string) => getTxExplorerUrl(txHash);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const notify = useCallback((message: string) => {

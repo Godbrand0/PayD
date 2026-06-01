@@ -99,6 +99,54 @@ function sha256(content: string): string {
 }
 
 /**
+ * Guard: scan the migration filenames and abort if any two files share the
+ * same numeric prefix (e.g. two files both starting with "010_").
+ *
+ * Duplicate prefixes are the primary root cause of checksum-mismatch failures
+ * in CI/CD because they corrupt the deterministic sort-order contract that the
+ * runner relies on.  Failing here gives the developer an immediately actionable
+ * error message instead of a cryptic drift error deeper in the pipeline.
+ *
+ * Time complexity  : O(m) — single pass over the filename array.
+ * Side effects     : Writes to stderr and calls process.exit(1) on violation.
+ */
+function assertNoDuplicatePrefixes(files: MigrationFile[]): void {
+  const prefixMap = new Map<string, string[]>();
+
+  for (const { filename } of files) {
+    const match = filename.match(/^(\d+)_/);
+    if (!match) continue;
+    const prefix = match[1];
+    if (!prefixMap.has(prefix)) prefixMap.set(prefix, []);
+    prefixMap.get(prefix)!.push(filename);
+  }
+
+  const duplicates = [...prefixMap.entries()].filter(([, names]) => names.length > 1);
+
+  if (duplicates.length === 0) return;
+
+  console.error('[migrate] ────────────────────────────────────────────────────');
+  console.error('[migrate] FATAL: Duplicate migration prefix(es) detected.');
+  console.error('[migrate]');
+  console.error('[migrate] Two or more migration files share the same numeric');
+  console.error('[migrate] prefix. This corrupts the sort-order contract and');
+  console.error('[migrate] will cause non-deterministic checksum mismatches.');
+  console.error('[migrate]');
+
+  for (const [prefix, names] of duplicates) {
+    console.error(`[migrate]   Prefix "${prefix}_" shared by:`);
+    for (const name of names) console.error(`[migrate]     - ${name}`);
+  }
+
+  console.error('[migrate]');
+  console.error('[migrate] Fix: run the re-sequencing script from the repo root:');
+  console.error('[migrate]   node scripts/resequence-migrations.mjs --dry-run');
+  console.error('[migrate]   node scripts/resequence-migrations.mjs');
+  console.error('[migrate] ────────────────────────────────────────────────────');
+  process.exit(1);
+}
+
+/**
  * Return all *.sql files from `dir`, sorted lexicographically.
  * Consistent sort order means numeric prefixes (001_, 012_) define
  * execution sequence without any external configuration.
@@ -192,6 +240,12 @@ async function runMigrations(isDryRun: boolean): Promise<RunResult> {
     const files = readMigrationFiles(MIGRATIONS_DIR);
     console.log(`[migrate] Found ${files.length} migration file(s) in ${MIGRATIONS_DIR}`);
 
+    // ── Step 2a: Guard against duplicate numeric prefixes ────────────────
+    // This check runs before any SQL is executed.  A duplicate prefix means
+    // two contributors merged migrations with the same number, which will
+    // produce non-deterministic sort ordering and eventual checksum drift.
+    assertNoDuplicatePrefixes(files);
+
     if (files.length === 0) {
       console.log('[migrate] Nothing to do.');
       return result;
@@ -210,7 +264,7 @@ async function runMigrations(isDryRun: boolean): Promise<RunResult> {
         // File already applied — check for content drift (tampering detection).
         if (record.checksum !== file.checksum) {
           const msg =
-            `[migrate] DRIFT DETECTED: "${file.filename}" was previously ` +
+            `[migrate] DRIFT DETECTED: "${file.filename}" at "${file.absolutePath}" was previously ` +
             `applied with checksum ${record.checksum} but the file now has ` +
             `checksum ${file.checksum}. ` +
             `Aborting to protect database integrity.`;

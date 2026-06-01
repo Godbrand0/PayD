@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { BalanceService } from '../services/balanceService.js';
 import { getAssetIssuer } from '../config/assets.js';
+import { pool } from '../config/database.js';
 
 const paymentEntrySchema = z.object({
   employeeId: z.string().min(1),
@@ -27,6 +28,14 @@ const preflightSchema = z.object({
   payments: z.array(paymentEntrySchema).min(1),
 });
 
+async function getOrganizationPublicKey(organizationId: number): Promise<string | null> {
+  const result = await pool.query('SELECT public_key FROM organizations WHERE id = $1', [
+    organizationId,
+  ]);
+
+  return result.rows[0]?.public_key ?? null;
+}
+
 export class BalanceController {
   /**
    * GET /api/balance/:accountId
@@ -40,9 +49,23 @@ export class BalanceController {
       const accountId = req.params.accountId as string;
       const assetCode = (req.query.assetCode as string | undefined) ?? 'ORGUSD';
       const explicitIssuer = req.query.assetIssuer as string | undefined;
+      const organizationId = req.organizationId ?? req.user?.organizationId ?? null;
 
       if (!accountId || accountId.length !== 56) {
         return res.status(400).json({ error: 'Invalid account ID.' });
+      }
+
+      if (!organizationId) {
+        return res.status(403).json({ error: 'Organization context is required.' });
+      }
+
+      const organizationPublicKey = await getOrganizationPublicKey(organizationId);
+      if (!organizationPublicKey) {
+        return res.status(404).json({ error: 'Organization public key is not configured.' });
+      }
+
+      if (organizationPublicKey !== accountId) {
+        return res.status(403).json({ error: 'Access denied: account does not belong to your organization.' });
       }
 
       // For non-XLM assets an issuer is required; resolve from registry if not provided.
@@ -95,6 +118,22 @@ export class BalanceController {
         assetIssuer: explicitIssuer,
         payments,
       } = preflightSchema.parse(req.body);
+      const organizationId = req.organizationId ?? req.user?.organizationId ?? null;
+
+      if (!organizationId) {
+        return res.status(403).json({ error: 'Organization context is required.' });
+      }
+
+      const organizationPublicKey = await getOrganizationPublicKey(organizationId);
+      if (!organizationPublicKey) {
+        return res.status(404).json({ error: 'Organization public key is not configured.' });
+      }
+
+      if (organizationPublicKey !== distributionAccount) {
+        return res
+          .status(403)
+          .json({ error: 'Access denied: distribution account does not match your organization.' });
+      }
 
       // Resolve issuer: explicit value > asset registry.
       let resolvedIssuer: string | null = null;

@@ -53,62 +53,117 @@ export default function BulkPayrollUpload() {
 
   if (submitted) {
     return (
-      <div className="p-8 max-w-2xl mx-auto">
-        <Card>
-          <div className="p-8 text-center space-y-4">
-            <div className="text-5xl">✓</div>
-            <h2 className="text-2xl font-bold">Payroll Batch Submitted</h2>
-            <p className="text-gray-600">
-              {validRows.length} payment{validRows.length !== 1 ? 's' : ''} queued for processing.
-            </p>
-            <Button variant="secondary" size="md" onClick={handleReset}>
-              Upload Another File
-            </Button>
-          </div>
-        </Card>
+      <div className="flex w-full flex-1 flex-col items-center justify-start px-4 py-6 sm:px-6 lg:px-8">
+        <div className="w-full max-w-2xl">
+          <Card>
+            <div className="p-8 text-center space-y-6">
+              <div className="mx-auto w-16 h-16 rounded-full bg-[rgba(74,240,184,0.1)] border-2 border-[var(--accent)] flex items-center justify-center">
+                <svg
+                  className="w-8 h-8 text-[var(--accent)]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-[var(--text)] mb-2">
+                  Payroll Batch Submitted
+                </h2>
+                <p className="text-[var(--muted)] text-base">
+                  {validRows.length} payment{validRows.length !== 1 ? 's' : ''} queued for
+                  processing on the Stellar network.
+                </p>
+              </div>
+              <div className="pt-4">
+                <Button variant="secondary" size="md" onClick={handleReset}>
+                  Upload Another File
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Bulk Payroll Upload</h1>
-        <p className="text-gray-600">
-          Upload a CSV file to process multiple payroll payments at once. Required columns:{' '}
-          <code className="bg-gray-100 px-1 rounded text-sm">{REQUIRED_COLUMNS.join(', ')}</code>
-        </p>
-        <IssuerMultisigBanner />
-      </div>
-
-      <Card>
-        <div className="p-6">
-          <CSVUploader
-            requiredColumns={REQUIRED_COLUMNS}
-            validators={validators}
-            onDataParsed={setParsedRows}
-          />
-        </div>
-      </Card>
-
-      {parsedRows.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600 space-x-4">
-            <span className="text-green-700 font-medium">{validRows.length} valid</span>
-            {invalidRows.length > 0 && (
-              <span className="text-red-600 font-medium">{invalidRows.length} with errors</span>
-            )}
+    <div className="flex w-full flex-1 flex-col items-center justify-start px-4 py-6 sm:px-6 lg:px-8">
+      <div className="w-full max-w-5xl space-y-6">
+        <div className="card glass noise border-[var(--border-hi)] p-6 sm:p-8">
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--muted)]">
+            Bulk Operations
+          </p>
+          <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-[var(--text)]">
+            CSV Upload <span className="text-[var(--accent)]">& Validation</span>
+          </h1>
+          <p className="mt-3 text-sm sm:text-base leading-6 text-[var(--muted)] max-w-3xl">
+            Upload a CSV file to process multiple payroll payments at once. The system validates
+            each row and provides a preview before submission.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="text-xs text-[var(--muted)]">Required columns:</span>
+            {REQUIRED_COLUMNS.map((col) => (
+              <code
+                key={col}
+                className="text-xs bg-[var(--surface-hi)] px-2 py-1 rounded border border-[var(--border)] text-[var(--accent)] font-mono"
+              >
+                {col}
+              </code>
+            ))}
           </div>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={handleSubmit}
-            disabled={validRows.length === 0}
-          >
-            Submit {validRows.length} Payment{validRows.length !== 1 ? 's' : ''}
-          </Button>
+          <IssuerMultisigBanner />
         </div>
-      )}
+
+        <Card>
+          <div className="p-6">
+            <CSVUploader
+              requiredColumns={REQUIRED_COLUMNS}
+              validators={validators}
+              onDataParsed={setParsedRows}
+            />
+          </div>
+        </Card>
+
+        {parsedRows.length > 0 && (
+          <div className="card border-[var(--border-hi)] bg-[var(--surface)]/95 p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[var(--success)]" />
+                  <span className="text-sm font-semibold text-[var(--text)]">
+                    {validRows.length} valid row{validRows.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {invalidRows.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[var(--danger)]" />
+                    <span className="text-sm font-semibold text-[var(--danger)]">
+                      {invalidRows.length} with error{invalidRows.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleSubmit}
+                disabled={validRows.length === 0}
+                aria-label={`Submit ${validRows.length} payment${validRows.length !== 1 ? 's' : ''}`}
+              >
+                Submit {validRows.length} Payment{validRows.length !== 1 ? 's' : ''}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

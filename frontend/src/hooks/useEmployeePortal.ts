@@ -235,6 +235,9 @@ export function useEmployeePortal(): UseEmployeePortalReturn {
       setCurrentPage(1);
     },
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: (query: string) => {
+      setSearchQuery(query);
+      setCurrentPage(1);
+    },
   };
 }

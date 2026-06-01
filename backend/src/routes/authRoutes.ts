@@ -2,16 +2,33 @@ import { Router } from 'express';
 import passport from 'passport';
 import { generateToken } from '../services/authService.js';
 import { AuthController } from '../controllers/authController.js';
+import { SocialAuthController } from '../controllers/socialAuthController.js';
+import { authRateLimit } from '../middlewares/rateLimitMiddleware.js';
+import { authenticateJWT } from '../middlewares/auth.js';
 
 const router = Router();
 
-router.post('/register', AuthController.register);
-router.post('/login', AuthController.login);
-router.post('/refresh', AuthController.refresh);
+const loginRateLimit = authRateLimit({
+  identifier: (req) => {
+    const walletAddress =
+      typeof req.body?.walletAddress === 'string' ? req.body.walletAddress.trim() : '';
+    const ip =
+      req.ip ||
+      req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+      req.headers['x-real-ip']?.toString() ||
+      'unknown';
 
-router.post('/2fa/setup', AuthController.setup2fa);
-router.post('/2fa/verify', AuthController.verify2fa);
-router.post('/2fa/disable', AuthController.disable2fa);
+    return walletAddress ? `login:${ip}:${walletAddress}` : `login:${ip}`;
+  },
+});
+
+router.post('/register', authRateLimit(), AuthController.register);
+router.post('/login', loginRateLimit, AuthController.login);
+router.post('/refresh', authRateLimit(), AuthController.refresh);
+
+router.post('/2fa/setup', authRateLimit(), AuthController.setup2fa);
+router.post('/2fa/verify', authRateLimit(), AuthController.verify2fa);
+router.post('/2fa/disable', authRateLimit(), AuthController.disable2fa);
 
 // Google Auth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -41,5 +58,9 @@ router.get(
     );
   }
 );
+
+// Social identity management (requires authenticated user)
+router.get('/social-identities', authenticateJWT, SocialAuthController.listIdentities);
+router.delete('/social-identities/:provider', authenticateJWT, SocialAuthController.unlinkProvider);
 
 export default router;

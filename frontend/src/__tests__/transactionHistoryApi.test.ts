@@ -1,18 +1,23 @@
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-base-to-string */
 /**
  * Unit Tests for Transaction History API Service
  *
  * Tests the normalization functions and API service layer
  */
 
-import { describe, test, expect } from 'vitest';
 import { normalizeAuditRecord, normalizeContractEvent } from '../services/transactionHistoryApi';
 import type { AuditRecord, ContractEvent } from '../types/transactionHistory';
+import axiosInstance from '../api/axiosInstance';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 
-// ============================================================================
-// Data Normalization Tests
-// ============================================================================
+vi.mock('../api/axiosInstance', () => ({
+  default: {
+    get: vi.fn(),
+  },
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('normalizeAuditRecord', () => {
   test('converts audit record to timeline item with all fields', () => {
@@ -277,22 +282,15 @@ describe('fetchAuditRecords', () => {
   test('builds query string with all filter parameters', async () => {
     const { fetchAuditRecords } = await import('../services/transactionHistoryApi');
 
-    // Mock fetch to capture the URL
-    let capturedUrl = '';
-    global.fetch = (url: string | URL | Request) => {
-      capturedUrl = typeof url === 'string' ? url : url.toString();
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            data: [],
-            total: 0,
-            page: 1,
-            totalPages: 0,
-          }),
-          { status: 200 }
-        )
-      );
-    };
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: {
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      },
+      status: 200,
+    });
 
     await fetchAuditRecords({
       page: 2,
@@ -305,35 +303,32 @@ describe('fetchAuditRecords', () => {
       search: 'abc123',
     });
 
-    // Verify all parameters are in the URL
-    expect(capturedUrl).toContain('page=2');
-    expect(capturedUrl).toContain('limit=20');
-    expect(capturedUrl).toContain('status=confirmed');
-    expect(capturedUrl).toContain('employee=john%40example.com');
-    expect(capturedUrl).toContain('asset=USDC');
-    expect(capturedUrl).toContain('startDate=2024-01-01');
-    expect(capturedUrl).toContain('endDate=2024-01-31');
-    expect(capturedUrl).toContain('search=abc123');
+    const [url, config] = vi.mocked(axiosInstance.get).mock.calls[0];
+    expect(url).toBe('/api/v1/audit');
+    expect(config?.params).toEqual({
+      page: 2,
+      limit: 20,
+      status: 'confirmed',
+      employee: 'john@example.com',
+      asset: 'USDC',
+      startDate: '2024-01-01',
+      endDate: '2024-01-31',
+      search: 'abc123',
+    });
   });
 
   test('omits empty filter parameters from query string', async () => {
     const { fetchAuditRecords } = await import('../services/transactionHistoryApi');
 
-    let capturedUrl = '';
-    global.fetch = (url: string | URL | Request) => {
-      capturedUrl = typeof url === 'string' ? url : url.toString();
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            data: [],
-            total: 0,
-            page: 1,
-            totalPages: 0,
-          }),
-          { status: 200 }
-        )
-      );
-    };
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: {
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      },
+      status: 200,
+    });
 
     await fetchAuditRecords({
       page: 1,
@@ -346,15 +341,17 @@ describe('fetchAuditRecords', () => {
       search: '',
     });
 
-    // Verify only page and limit are in the URL
-    expect(capturedUrl).toContain('page=1');
-    expect(capturedUrl).toContain('limit=10');
-    expect(capturedUrl).not.toContain('status=');
-    expect(capturedUrl).not.toContain('employee=');
-    expect(capturedUrl).not.toContain('asset=');
-    expect(capturedUrl).not.toContain('startDate=');
-    expect(capturedUrl).not.toContain('endDate=');
-    expect(capturedUrl).not.toContain('search=');
+    const config = vi.mocked(axiosInstance.get).mock.calls[0][1];
+    expect(config?.params).toEqual({
+      page: 1,
+      limit: 10,
+      status: '',
+      employee: '',
+      asset: '',
+      startDate: '',
+      endDate: '',
+      search: '',
+    });
   });
 
   test('handles successful response with data', async () => {
@@ -377,9 +374,10 @@ describe('fetchAuditRecords', () => {
       totalPages: 1,
     };
 
-    global.fetch = async () => {
-      return new Response(JSON.stringify(mockData), { status: 200 });
-    };
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: mockData,
+      status: 200,
+    });
 
     const result = await fetchAuditRecords({ page: 1, limit: 10 });
 
@@ -391,9 +389,7 @@ describe('fetchAuditRecords', () => {
   test('throws network error for fetch failure', async () => {
     const { fetchAuditRecords } = await import('../services/transactionHistoryApi');
 
-    global.fetch = async () => {
-      throw new TypeError('Failed to fetch');
-    };
+    vi.mocked(axiosInstance.get).mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(fetchAuditRecords({ page: 1, limit: 10 })).rejects.toThrow(
       'Unable to connect. Please check your internet connection.'
@@ -403,9 +399,9 @@ describe('fetchAuditRecords', () => {
   test('throws client error for 4xx response', async () => {
     const { fetchAuditRecords } = await import('../services/transactionHistoryApi');
 
-    global.fetch = async () => {
-      return new Response('Bad Request', { status: 400 });
-    };
+    vi.mocked(axiosInstance.get).mockRejectedValue({
+      response: { status: 400, data: 'Bad Request' },
+    });
 
     await expect(fetchAuditRecords({ page: 1, limit: 10 })).rejects.toThrow(
       'Invalid request. Please check your filters and try again.'
@@ -415,9 +411,9 @@ describe('fetchAuditRecords', () => {
   test('throws server error for 5xx response', async () => {
     const { fetchAuditRecords } = await import('../services/transactionHistoryApi');
 
-    global.fetch = async () => {
-      return new Response('Internal Server Error', { status: 500 });
-    };
+    vi.mocked(axiosInstance.get).mockRejectedValue({
+      response: { status: 500, data: 'Internal Server Error' },
+    });
 
     await expect(fetchAuditRecords({ page: 1, limit: 10 })).rejects.toThrow(
       'Server error. Please try again later.'
@@ -429,19 +425,23 @@ describe('fetchAuditRecords', () => {
 
     const abortController = new AbortController();
 
-    global.fetch = async (_url: string | URL | Request, options?: RequestInit) => {
+    vi.mocked(axiosInstance.get).mockImplementation(async (_url, config) => {
       // Simulate a delay
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Check if aborted
-      if (options?.signal?.aborted) {
-        throw new DOMException('The operation was aborted.', 'AbortError');
+      if (config?.signal?.aborted) {
+        const axiosError = new Error('Canceled') as any;
+        axiosError.name = 'CanceledError';
+        axiosError.isAxiosError = true;
+        throw axiosError;
       }
 
-      return new Response(JSON.stringify({ data: [], total: 0, page: 1, totalPages: 0 }), {
+      return {
+        data: { data: [], total: 0, page: 1, totalPages: 0 },
         status: 200,
-      });
-    };
+      } as any;
+    });
 
     // Abort immediately
     abortController.abort();
@@ -456,18 +456,14 @@ describe('fetchContractEvents', () => {
   test('builds query string with pagination parameters', async () => {
     const { fetchContractEvents } = await import('../services/transactionHistoryApi');
 
-    let capturedUrl = '';
-    global.fetch = async (url: string | URL | Request) => {
-      capturedUrl = url.toString();
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: [],
-          pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
-        }),
-        { status: 200 }
-      );
-    };
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: {
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      },
+      status: 200,
+    });
 
     await fetchContractEvents({
       contractId: 'CABC123',
@@ -475,26 +471,25 @@ describe('fetchContractEvents', () => {
       limit: 20,
     });
 
-    expect(capturedUrl).toContain('CABC123');
-    expect(capturedUrl).toContain('page=2');
-    expect(capturedUrl).toContain('limit=20');
+    const [url, config] = vi.mocked(axiosInstance.get).mock.calls[0];
+    expect(url).toBe('/api/events/CABC123');
+    expect(config?.params).toEqual({
+      page: 2,
+      limit: 20,
+    });
   });
 
   test('includes optional filter parameters when provided', async () => {
     const { fetchContractEvents } = await import('../services/transactionHistoryApi');
 
-    let capturedUrl = '';
-    global.fetch = async (url: string | URL | Request) => {
-      capturedUrl = url.toString();
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: [],
-          pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
-        }),
-        { status: 200 }
-      );
-    };
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: {
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      },
+      status: 200,
+    });
 
     await fetchContractEvents({
       contractId: 'CABC123',
@@ -504,8 +499,13 @@ describe('fetchContractEvents', () => {
       category: 'payment',
     });
 
-    expect(capturedUrl).toContain('eventType=transfer');
-    expect(capturedUrl).toContain('category=payment');
+    const config = vi.mocked(axiosInstance.get).mock.calls[0][1];
+    expect(config?.params).toEqual({
+      page: 1,
+      limit: 10,
+      eventType: 'transfer',
+      category: 'payment',
+    });
   });
 
   test('handles successful response with events', async () => {
@@ -527,9 +527,10 @@ describe('fetchContractEvents', () => {
       pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
     };
 
-    global.fetch = async () => {
-      return new Response(JSON.stringify(mockData), { status: 200 });
-    };
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: mockData,
+      status: 200,
+    });
 
     const result = await fetchContractEvents({
       contractId: 'CABC123',
@@ -545,9 +546,7 @@ describe('fetchContractEvents', () => {
   test('throws network error for fetch failure', async () => {
     const { fetchContractEvents } = await import('../services/transactionHistoryApi');
 
-    global.fetch = async () => {
-      throw new TypeError('Failed to fetch');
-    };
+    vi.mocked(axiosInstance.get).mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(
       fetchContractEvents({ contractId: 'CABC123', page: 1, limit: 10 })
@@ -557,9 +556,9 @@ describe('fetchContractEvents', () => {
   test('throws client error for 404 response', async () => {
     const { fetchContractEvents } = await import('../services/transactionHistoryApi');
 
-    global.fetch = async () => {
-      return new Response('Not Found', { status: 404 });
-    };
+    vi.mocked(axiosInstance.get).mockRejectedValue({
+      response: { status: 404, data: 'Not Found' },
+    });
 
     await expect(
       fetchContractEvents({ contractId: 'CABC123', page: 1, limit: 10 })
@@ -569,9 +568,9 @@ describe('fetchContractEvents', () => {
   test('throws server error for 503 response', async () => {
     const { fetchContractEvents } = await import('../services/transactionHistoryApi');
 
-    global.fetch = async () => {
-      return new Response('Service Unavailable', { status: 503 });
-    };
+    vi.mocked(axiosInstance.get).mockRejectedValue({
+      response: { status: 503, data: 'Service Unavailable' },
+    });
 
     await expect(
       fetchContractEvents({ contractId: 'CABC123', page: 1, limit: 10 })
@@ -583,21 +582,24 @@ describe('fetchContractEvents', () => {
 
     const abortController = new AbortController();
 
-    global.fetch = async (_url: string | URL | Request, options?: RequestInit) => {
+    vi.mocked(axiosInstance.get).mockImplementation(async (_url, config) => {
       // Check if aborted
-      if (options?.signal?.aborted) {
-        throw new DOMException('The operation was aborted.', 'AbortError');
+      if (config?.signal?.aborted) {
+        const axiosError = new Error('Canceled') as any;
+        axiosError.name = 'CanceledError';
+        axiosError.isAxiosError = true;
+        throw axiosError;
       }
 
-      return new Response(
-        JSON.stringify({
+      return {
+        data: {
           success: true,
           data: [],
           pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
-        }),
-        { status: 200 }
-      );
-    };
+        },
+        status: 200,
+      } as any;
+    });
 
     // Abort immediately
     abortController.abort();

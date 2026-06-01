@@ -4,10 +4,19 @@ import {
   UpdateEmployeeInput,
   EmployeeQueryInput,
 } from '../schemas/employeeSchema.js';
-import { WebhookService, WEBHOOK_EVENTS } from './webhook.service.js';
+import { webhookNotificationService, WEBHOOK_EVENTS } from './webhookNotificationService.js';
+import { StrKey } from '@stellar/stellar-sdk';
+import { withRetry } from '../utils/retry.js';
 
 export class EmployeeService {
+  private validateStellarAddress(address?: string) {
+    if (address && !StrKey.isValidEd25519PublicKey(address)) {
+      throw new Error(`Invalid Stellar wallet address: ${address}`);
+    }
+  }
+
   async create(data: CreateEmployeeInput, dbClient?: any) {
+    this.validateStellarAddress(data.wallet_address);
     const executor = dbClient || pool;
     const {
       organization_id,
@@ -92,7 +101,7 @@ export class EmployeeService {
       notes || null,
     ];
 
-    const result = await executor.query(query, values);
+    const result = await withRetry(() => executor.query(query, values));
     const employee = result.rows[0];
 
     EmployeeService.dispatchWebhook(organization_id, WEBHOOK_EVENTS.EMPLOYEE_ADDED, employee).catch(
@@ -108,7 +117,7 @@ export class EmployeeService {
     payload: any
   ): Promise<void> {
     try {
-      await WebhookService.dispatch(eventType, organization_id, payload);
+      await webhookNotificationService.dispatch(eventType, payload, organization_id);
     } catch (error) {
       console.error(`Webhook dispatch failed for ${eventType}:`, error);
     }
@@ -214,7 +223,7 @@ export class EmployeeService {
     `;
     values.push(limit, offset);
 
-    const result = await pool.query(query, values);
+    const result = await withRetry(() => pool.query(query, values));
 
     const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
     const employees = result.rows.map((row) => {
@@ -239,11 +248,14 @@ export class EmployeeService {
       SELECT * FROM employees
       WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
     `;
-    const result = await pool.query(query, [id, organization_id]);
+    const result = await withRetry(() => pool.query(query, [id, organization_id]));
     return result.rows[0] || null;
   }
 
   async update(id: number, organization_id: number, data: UpdateEmployeeInput) {
+    if (data.wallet_address) {
+      this.validateStellarAddress(data.wallet_address);
+    }
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
     let paramIndex = 1;
@@ -265,7 +277,7 @@ export class EmployeeService {
       RETURNING *;
     `;
 
-    const result = await pool.query(query, values);
+    const result = await withRetry(() => pool.query(query, values));
     const employee = result.rows[0] || null;
 
     if (employee) {
@@ -286,7 +298,7 @@ export class EmployeeService {
       WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
       RETURNING *;
     `;
-    const result = await pool.query(query, [id, organization_id]);
+    const result = await withRetry(() => pool.query(query, [id, organization_id]));
     const employee = result.rows[0] || null;
 
     if (employee) {

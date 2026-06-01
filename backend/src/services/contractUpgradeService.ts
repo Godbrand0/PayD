@@ -23,6 +23,7 @@ import {
   xdr,
 } from '@stellar/stellar-sdk';
 import { pool } from '../config/database.js';
+import { TransactionVerificationQueueService } from './transactionVerificationQueueService.js';
 
 // ---------------------------------------------------------------------------
 // Environment helpers (mirror the pattern from stellarService.ts)
@@ -600,6 +601,18 @@ export class ContractUpgradeService {
       txHash,
       upgradeLogId,
     ]);
+
+    // Verify on-chain & persist immutable audit record (async).
+    // Even though Soroban RPC confirmation succeeded, this ensures we also
+    // capture the canonical Horizon envelope/result XDR for audit/compliance.
+    try {
+      await TransactionVerificationQueueService.enqueue({
+        txHash,
+        source: 'contract_upgrade',
+      });
+    } catch {
+      // Best-effort
+    }
 
     // Run migration steps asynchronously (fire-and-forget from the
     // caller's perspective; the client polls /status).
