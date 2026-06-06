@@ -203,9 +203,8 @@ describe('CSVUploader', () => {
 
     await waitFor(() => {
       expect(screen.getByText('test.csv')).toBeTruthy();
+      expect(screen.getByText(/2 valid rows/i)).toBeTruthy();
     });
-
-    expect(screen.getByText(/2 valid rows/i)).toBeTruthy();
   });
 
   test('displays data preview table after parsing', async () => {
