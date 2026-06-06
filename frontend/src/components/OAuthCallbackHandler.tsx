@@ -102,7 +102,7 @@ export const OAuthCallbackHandler: React.FC<OAuthCallbackHandlerProps> = ({
 
         // Redirect after a short delay to show success message
         const timer = setTimeout(() => {
-          navigate(redirectTo, { replace: true });
+          void navigate(redirectTo, { replace: true });
         }, 1500);
 
         return () => clearTimeout(timer);
@@ -114,7 +114,7 @@ export const OAuthCallbackHandler: React.FC<OAuthCallbackHandlerProps> = ({
       }
     };
 
-    processCallback();
+    void processCallback();
   }, [searchParams, onTokenReceived, onSuccess, onError, navigate, redirectTo]);
 
   const handleRetry = () => {
@@ -204,7 +204,7 @@ export const OAuthCallbackHandler: React.FC<OAuthCallbackHandlerProps> = ({
               Try Again
             </button>
             <button
-              onClick={() => navigate('/login', { replace: true })}
+              onClick={() => void navigate('/login', { replace: true })}
               className="px-4 py-2.5 rounded-lg border border-[var(--border-hi)] text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
               type="button"
             >

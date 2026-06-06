@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Chrome, Github, Link2, Trash2, AlertCircle } from 'lucide-react';
-import { StatusBadge } from './StatusBadge';
 
 export type SocialProvider = 'google' | 'github';
 
@@ -222,7 +221,6 @@ export const SocialIdentityManager: React.FC<SocialIdentityManagerProps> = ({
           <div className="grid gap-3 sm:grid-cols-2">
             {availableProviders.map((provider) => {
               const config = providerConfig[provider];
-              const ProviderIcon = config.icon;
 
               return (
                 <button

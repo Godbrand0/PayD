@@ -455,9 +455,9 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
                     >
                       {(dragProvided, dragSnapshot) => (
                         <article
+                          key={employee.id}
                           ref={dragProvided.innerRef}
                           {...dragProvided.draggableProps}
-                          key={employee.id}
                           className={`rounded-3xl border border-hi bg-[var(--surface-hi)]/70 p-5 shadow-[var(--shadow-card)] ${dragSnapshot.isDragging ? 'shadow-[0_8px_32px_rgba(74,240,184,0.15)] ring-1 ring-[var(--accent)]' : ''}`}
                         >
                           {reorderMode && (

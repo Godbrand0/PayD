@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Clock, AlertCircle, XCircle } from 'lucide-react';
+import { Check, Clock, XCircle } from 'lucide-react';
 
 export type TimelineItemStatus = 'completed' | 'current' | 'pending' | 'error';
 
@@ -101,7 +101,7 @@ export const Timeline: React.FC<TimelineProps> = ({ items, direction = 'vertical
   return (
     <div className={`${className}`}>
       <ol className="relative space-y-6 border-l-2 border-[var(--border-hi)] pl-6 md:pl-8">
-        {items.map((item, index) => (
+        {items.map((item) => (
           <li key={item.id}>
             <div className="absolute -left-4 md:-left-5 mt-1.5">
               <div

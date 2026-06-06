@@ -72,7 +72,8 @@ export const FormField: React.FC<FormFieldProps> = ({
 
       <div className="relative">
         {React.isValidElement(children)
-          ? React.cloneElement(children, {
+          ? // eslint-disable-next-line react-x/no-clone-element
+            React.cloneElement(children, {
               id,
               required,
               'aria-required': required,

@@ -202,7 +202,7 @@ const cardVariants = {
 
 export default function PayrollAnalytics() {
   const [startDate, setStartDate] = useState('2026-01-01');
-  const [endDate, setEndDate] = useState(toDateInput(new Date()));
+  const [endDate, setEndDate] = useState(() => toDateInput(new Date()));
   const [trendType, setTrendType] = useState<TrendChartType>('line');
   const [activePreset, setActivePreset] = useState<string | null>(null);
 

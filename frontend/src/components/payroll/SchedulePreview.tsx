@@ -38,7 +38,7 @@ export const SchedulePreview: React.FC<Props> = ({ startDate, frequency }) => {
       <h4 className="text-sm font-medium text-gray-900 mb-3">Upcoming Executions</h4>
       <ul className="space-y-2">
         {dates.map((date, index) => (
-          <li key={index} className="flex items-center text-sm text-gray-600">
+          <li key={date.toISOString()} className="flex items-center text-sm text-gray-600">
             <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs mr-3 font-semibold">
               {index + 1}
             </span>

@@ -95,7 +95,7 @@ export function useWalletManager(connectionTimeoutMs: number = 15000) {
     };
 
     void attemptSilentReconnect();
-  }, [notifyWalletEvent, network]);
+  }, [notifyWalletEvent, network, connectionTimeoutMs]);
 
   const loadWalletOptions = useCallback(async (): Promise<SelectableWallet[]> => {
     const kit = kitRef.current;

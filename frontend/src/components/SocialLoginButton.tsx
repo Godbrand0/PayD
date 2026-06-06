@@ -88,6 +88,7 @@ const sizeConfig = {
  * />
  * ```
  */
+// eslint-disable-next-line react-x/no-forward-ref
 export const SocialLoginButton = forwardRef<HTMLButtonElement, SocialLoginButtonProps>(
   (
     {

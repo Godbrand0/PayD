@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useState } from 'react';
 import { Toast, ToastContextType } from '../types/toast';
 import { ToastContainer } from '../components/common/Toast/ToastContainer';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,11 +46,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   return (
-    <ToastContext.Provider
+    <ToastContext
       value={{ toasts, showToast, showSuccess, showError, showWarning, showInfo, removeToast }}
     >
       {children}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
-    </ToastContext.Provider>
+    </ToastContext>
   );
 };

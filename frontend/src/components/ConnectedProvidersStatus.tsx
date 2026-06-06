@@ -79,7 +79,7 @@ export const ConnectedProvidersStatus: React.FC<ConnectedProvidersStatusProps> =
 
   return (
     <div
-      className={`grid gap-3 ${className}`}
+      className={`grid ${containerClass} ${className}`}
       role="status"
       aria-label="Connected social providers"
     >

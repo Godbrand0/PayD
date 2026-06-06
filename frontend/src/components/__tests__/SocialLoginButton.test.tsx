@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SocialLoginButton } from '../SocialLoginButton';
 
@@ -69,7 +69,7 @@ describe('SocialLoginButton', () => {
   });
 
   it('applies size variants', () => {
-    const { rerender, container } = render(
+    const { rerender } = render(
       <SocialLoginButton provider="google" size="sm" />
     );
     let button = screen.getByRole('button');
@@ -91,7 +91,7 @@ describe('SocialLoginButton', () => {
   });
 
   it('applies custom className', () => {
-    const { container } = render(
+    render(
       <SocialLoginButton provider="google" className="custom-class" />
     );
     const button = screen.getByRole('button');

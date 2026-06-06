@@ -62,7 +62,7 @@ describe('EmptyState', () => {
   });
 
   it('renders custom icon', () => {
-    const { container } = render(
+    render(
       <EmptyState
         title="Empty"
         icon={<span data-testid="custom-icon">📭</span>}

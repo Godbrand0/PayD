@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Toast } from '../../../types/toast';
 
 interface ToastItemProps {
@@ -10,17 +10,17 @@ export const ToastItem: React.FC<ToastItemProps> = ({ toast, removeToast }) => {
   const [isClosing, setIsClosing] = useState(false);
   const duration = toast.duration || 5000;
 
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => removeToast(toast.id), 300);
+  }, [removeToast, toast.id]);
+
   useEffect(() => {
     if (duration !== Infinity) {
       const timer = setTimeout(() => handleClose(), duration);
       return () => clearTimeout(timer);
     }
-  }, [duration]);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(() => removeToast(toast.id), 300);
-  };
+  }, [duration, handleClose]);
 
   const getBgColor = () => {
     switch (toast.type) {

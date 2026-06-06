@@ -26,6 +26,16 @@ import { claimService, ClaimableBalance } from '../services/claimableBalance';
 import styles from './EmployeePortal.module.css';
 import { useWallet } from '../hooks/useWallet';
 import { useAuth } from '../providers/useAuth';
+import { useNotification } from '../hooks/useNotification';
+import { useSorobanContract } from '../hooks/useSorobanContract';
+import {
+  BASE_FEE,
+  Contract,
+  Networks,
+  rpc,
+  TransactionBuilder,
+  scValToNative,
+} from '@stellar/stellar-sdk';
 
 /* ── Pending Claims Section ──────── */
 function PendingClaimsSection() {
