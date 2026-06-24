@@ -254,6 +254,45 @@ fn test_update_recipients_rejects_zero_share() {
 }
 
 #[test]
+fn test_update_recipients_rejects_invalid_sum() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(RevenueSplitContract, ());
+    let client = RevenueSplitContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let recipient1 = Address::generate(&env);
+
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient1.clone(),
+            basis_points: 10000,
+        }],
+    );
+    client.init(&admin, &shares);
+
+    let recipient2 = Address::generate(&env);
+    let new_shares = Vec::from_array(
+        &env,
+        [
+            RecipientShare {
+                destination: recipient1,
+                basis_points: 5000,
+            },
+            RecipientShare {
+                destination: recipient2,
+                basis_points: 4000,
+            },
+        ],
+    );
+
+    let result = client.try_update_recipients(&new_shares);
+    assert_eq!(result, Err(Ok(RevenueSplitError::BasisPointsSumMismatch)));
+}
+
+#[test]
 fn test_set_admin() {
     let env = Env::default();
     env.mock_all_auths();
@@ -275,6 +314,82 @@ fn test_set_admin() {
     client.init(&admin, &shares);
     client.set_admin(&new_admin);
     assert_eq!(client.get_admin(), new_admin);
+}
+
+#[test]
+fn test_multi_asset_distribution_tracks_each_token() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_sequence_number(100);
+
+    let token_admin = Address::generate(&env);
+    let (token_a, asset_a, token_client_a) = create_token_contract(&env, &token_admin);
+    let (token_b, asset_b, token_client_b) = create_token_contract(&env, &token_admin);
+
+    let contract_id = env.register(RevenueSplitContract, ());
+    let client = RevenueSplitContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10000,
+        }],
+    );
+
+    client.init(&admin, &shares);
+    client.add_supported_asset(&token_a);
+    client.add_supported_asset(&token_b);
+
+    let sender = Address::generate(&env);
+    asset_a.mint(&sender, &1000);
+    asset_b.mint(&sender, &2500);
+
+    client.distribute(&token_a, &sender, &1000);
+    env.ledger().set_sequence_number(101);
+    client.distribute(&token_b, &sender, &2500);
+
+    assert_eq!(token_client_a.balance(&recipient), 1000);
+    assert_eq!(token_client_b.balance(&recipient), 2500);
+    assert_eq!(client.get_total_distributed(&token_a), 1000);
+    assert_eq!(client.get_total_distributed(&token_b), 2500);
+    assert_eq!(client.get_distribution_count(), 2);
+}
+
+#[test]
+fn test_unsupported_asset_is_rejected_when_allowlist_configured() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin = Address::generate(&env);
+    let (supported_token, _, _) = create_token_contract(&env, &token_admin);
+    let (unsupported_token, asset_b, token_client_b) = create_token_contract(&env, &token_admin);
+
+    let contract_id = env.register(RevenueSplitContract, ());
+    let client = RevenueSplitContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let shares = Vec::from_array(
+        &env,
+        [RecipientShare {
+            destination: recipient.clone(),
+            basis_points: 10000,
+        }],
+    );
+
+    client.init(&admin, &shares);
+    client.add_supported_asset(&supported_token);
+
+    let sender = Address::generate(&env);
+    asset_b.mint(&sender, &1000);
+
+    let result = client.try_distribute(&unsupported_token, &sender, &1000);
+    assert_eq!(result, Err(Ok(RevenueSplitError::UnsupportedAsset)));
+    assert_eq!(token_client_b.balance(&recipient), 0);
+    assert_eq!(client.get_total_distributed(&unsupported_token), 0);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

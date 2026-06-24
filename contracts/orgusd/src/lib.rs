@@ -27,7 +27,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, Address, Env,
+    contract, contracterror, contractevent, contractimpl, contracttype, Address, Env, String,
 };
 
 // ── Errors ────────────────────────────────────────────────────────────────────
@@ -54,6 +54,18 @@ pub enum OrgUsdError {
     InsufficientFunds = 8,
     /// Recipient and sender are the same address.
     SelfTransfer = 9,
+}
+
+/// SEP-0001 asset metadata mirrored from `.well-known/stellar.toml`.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Sep1AssetMetadata {
+    pub code: String,
+    pub issuer: String,
+    pub home_domain: String,
+    pub display_decimals: u32,
+    pub anchored: bool,
+    pub anchor_asset: String,
 }
 
 // ── Storage keys ─────────────────────────────────────────────────────────────
@@ -173,6 +185,43 @@ impl OrgUsdContract {
     /// Contract author / organization (SEP-0034).
     pub fn author(env: Env) -> soroban_sdk::String {
         soroban_sdk::String::from_str(&env, env!("CARGO_PKG_AUTHORS"))
+    }
+
+    /// Returns SEP-0001 metadata expected for the ORGUSD asset.
+    ///
+    /// These values must stay synchronized with `backend/.well-known/stellar.toml`
+    /// so clients can verify the on-chain asset contract against hosted
+    /// Stellar asset metadata.
+    pub fn sep1_metadata(env: Env) -> Sep1AssetMetadata {
+        Sep1AssetMetadata {
+            code: String::from_str(&env, "ORGUSD"),
+            issuer: String::from_str(
+                &env,
+                "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            ),
+            home_domain: String::from_str(&env, "payd.example.com"),
+            display_decimals: 2,
+            anchored: true,
+            anchor_asset: String::from_str(&env, "USD"),
+        }
+    }
+
+    /// Verifies externally supplied SEP-0001 metadata against the contract's
+    /// expected ORGUSD asset metadata.
+    pub fn verify_sep1_metadata(
+        env: Env,
+        code: String,
+        issuer: String,
+        home_domain: String,
+        display_decimals: u32,
+        anchor_asset: String,
+    ) -> bool {
+        let expected = Self::sep1_metadata(env);
+        expected.code == code
+            && expected.issuer == issuer
+            && expected.home_domain == home_domain
+            && expected.display_decimals == display_decimals
+            && expected.anchor_asset == anchor_asset
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -552,6 +601,49 @@ mod tests {
     fn test_name_returns_orgusd() {
         let (env, _, client) = setup();
         assert_eq!(client.name(), soroban_sdk::String::from_str(&env, "ORGUSD"));
+    }
+
+    #[test]
+    fn test_sep1_metadata_matches_stellar_toml_values() {
+        let (env, _, client) = setup();
+        let metadata = client.sep1_metadata();
+
+        assert_eq!(metadata.code, String::from_str(&env, "ORGUSD"));
+        assert_eq!(
+            metadata.issuer,
+            String::from_str(
+                &env,
+                "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+            )
+        );
+        assert_eq!(metadata.home_domain, String::from_str(&env, "payd.example.com"));
+        assert_eq!(metadata.display_decimals, 2);
+        assert!(metadata.anchored);
+        assert_eq!(metadata.anchor_asset, String::from_str(&env, "USD"));
+    }
+
+    #[test]
+    fn test_verify_sep1_metadata() {
+        let (env, _, client) = setup();
+
+        assert!(client.verify_sep1_metadata(
+            &String::from_str(&env, "ORGUSD"),
+            &String::from_str(
+                &env,
+                "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            ),
+            &String::from_str(&env, "payd.example.com"),
+            &2,
+            &String::from_str(&env, "USD"),
+        ));
+
+        assert!(!client.verify_sep1_metadata(
+            &String::from_str(&env, "ORGUSD"),
+            &String::from_str(&env, "GDIFFERENTISSUER0000000000000000000000000000000000000000"),
+            &String::from_str(&env, "payd.example.com"),
+            &2,
+            &String::from_str(&env, "USD"),
+        ));
     }
 
     // ── authorize / revoke ────────────────────────────────────────────────────

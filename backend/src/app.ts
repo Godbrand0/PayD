@@ -142,8 +142,9 @@ fs.writeFileSync(path.join(__appDirname, '../openapi.json'), JSON.stringify(swag
 // ─── API Versioning ───────────────────────────────────────────────────────────
 app.use(apiVersionMiddleware);
 
-// Versioned API — canonical entry point
-app.use('/api/v1', apiRateLimit(), v1Routes);
+// Versioned API — canonical entry point. Individual v1 route groups apply the
+// appropriate rate-limit tier so requests are not double-counted.
+app.use('/api/v1', v1Routes);
 
 // API root — discovery endpoint
 app.get('/api', (_req, res) => {

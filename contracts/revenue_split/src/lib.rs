@@ -22,6 +22,7 @@ pub enum RevenueSplitError {
     LedgerReplayDetected = 6,
     UnauthorizedDistribution = 7,
     ContractPaused = 8,
+    UnsupportedAsset = 9,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -56,6 +57,20 @@ pub struct PauseStateChangedEvent {
     pub admin: Address,
 }
 
+/// Emitted when an admin adds support for a token asset.
+#[contractevent]
+pub struct AssetSupportedEvent {
+    pub admin: Address,
+    pub token: Address,
+}
+
+/// Emitted when an admin removes support for a token asset.
+#[contractevent]
+pub struct AssetRemovedEvent {
+    pub admin: Address,
+    pub token: Address,
+}
+
 // ── Storage ───────────────────────────────────────────────────────────────────
 
 #[contracttype]
@@ -70,6 +85,8 @@ pub enum DataKey {
     Paused,
     /// Cumulative count of completed distributions.
     DistributionCount,
+    /// Optional admin-managed allowlist of token assets.
+    SupportedAssets,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -172,7 +189,7 @@ impl RevenueSplitContract {
     ) -> Result<(), RevenueSplitError> {
         let admin = Self::load_admin(&env);
         admin.require_auth();
-        Self::validate_shares(&new_shares);
+        Self::validate_shares(&new_shares)?;
         let recipient_count = new_shares.len();
         Self::store_recipients(&env, &new_shares);
         Self::bump_core_ttl(&env);
@@ -216,6 +233,55 @@ impl RevenueSplitContract {
             .unwrap_or(0)
     }
 
+    /// Adds a token asset to the supported-asset allowlist (admin only).
+    ///
+    /// An empty allowlist preserves legacy behavior and accepts any token.
+    /// Once at least one asset is added, `distribute` only accepts listed
+    /// assets.
+    pub fn add_supported_asset(env: Env, token: Address) -> Result<(), RevenueSplitError> {
+        let admin = Self::load_admin(&env);
+        admin.require_auth();
+
+        let mut assets = Self::load_supported_assets_or_empty(&env);
+        if !Self::asset_vec_contains(&assets, &token) {
+            assets.push_back(token.clone());
+            Self::store_supported_assets(&env, &assets);
+        }
+
+        AssetSupportedEvent { admin, token }.publish(&env);
+        Ok(())
+    }
+
+    /// Removes a token asset from the supported-asset allowlist (admin only).
+    pub fn remove_supported_asset(env: Env, token: Address) -> Result<(), RevenueSplitError> {
+        let admin = Self::load_admin(&env);
+        admin.require_auth();
+
+        let assets = Self::load_supported_assets_or_empty(&env);
+        let mut updated = Vec::new(&env);
+        for asset in assets.iter() {
+            if asset != token {
+                updated.push_back(asset);
+            }
+        }
+        Self::store_supported_assets(&env, &updated);
+
+        AssetRemovedEvent { admin, token }.publish(&env);
+        Ok(())
+    }
+
+    /// Returns the configured supported token assets.
+    ///
+    /// An empty list means the legacy open policy is active.
+    pub fn get_supported_assets(env: Env) -> Vec<Address> {
+        Self::load_supported_assets_or_empty(&env)
+    }
+
+    /// Returns whether `token` is currently distributable.
+    pub fn is_asset_supported(env: Env, token: Address) -> bool {
+        Self::is_asset_supported_internal(&env, &token)
+    }
+
     /// Distributes a specific token amount from a sender to the listed recipients based on their shares.
     ///
     /// ### Algorithm: Basis Points Distribution
@@ -240,6 +306,9 @@ impl RevenueSplitContract {
 
         Self::require_not_paused(&env)?;
         from.require_auth();
+        if !Self::is_asset_supported_internal(&env, &token) {
+            return Err(RevenueSplitError::UnsupportedAsset);
+        }
         Self::require_unique_ledger(&env)?;
 
         let shares = Self::load_recipients(&env);
@@ -418,6 +487,47 @@ impl RevenueSplitContract {
         );
     }
 
+    fn load_supported_assets_or_empty(env: &Env) -> Vec<Address> {
+        let key = DataKey::SupportedAssets;
+        let assets = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+        if env.storage().persistent().has(&key) {
+            env.storage().persistent().extend_ttl(
+                &key,
+                PERSISTENT_TTL_THRESHOLD,
+                PERSISTENT_TTL_EXTEND_TO,
+            );
+        }
+        assets
+    }
+
+    fn store_supported_assets(env: &Env, assets: &Vec<Address>) {
+        let key = DataKey::SupportedAssets;
+        env.storage().persistent().set(&key, assets);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
+    }
+
+    fn asset_vec_contains(assets: &Vec<Address>, token: &Address) -> bool {
+        for asset in assets.iter() {
+            if asset == *token {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn is_asset_supported_internal(env: &Env, token: &Address) -> bool {
+        let assets = Self::load_supported_assets_or_empty(env);
+        assets.is_empty() || Self::asset_vec_contains(&assets, token)
+    }
+
     /// Internal helper to calculate the distribution of an amount across recipients.
     ///
     /// The final recipient absorbs any rounding remainder to ensure 100% of
@@ -460,6 +570,7 @@ impl RevenueSplitContract {
             DataKey::Admin,
             DataKey::Recipients,
             DataKey::DistributionCount,
+            DataKey::SupportedAssets,
         ] {
             if env.storage().persistent().has(&key) {
                 env.storage().persistent().extend_ttl(
