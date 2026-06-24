@@ -91,10 +91,9 @@ app.use(passport.initialize());
 app.use((req, res, next) => {
   res.setTimeout(30000, () => {
     if (!res.headersSent) {
-      res.status(503).json({
-        error: 'Service Unavailable',
-        message: 'Request timed out',
-      });
+      res.status(503).json(
+        apiErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Request timed out')
+      );
     }
   });
   next();

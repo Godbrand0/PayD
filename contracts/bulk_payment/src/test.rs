@@ -2092,3 +2092,327 @@ fn test_estimate_batch_fee_rejects_invalid_inputs() {
 
     assert_eq!(result, Err(Ok(ContractError::InvalidFeeConfig)));
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── AUTOMATIC DISTRIBUTION ACCOUNT RE-FUNDING TESTS (Issue #600) ─────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn setup_with_funding_source() -> (
+    Env,
+    Address,
+    Address,
+    Address,
+    BulkPaymentContractClient<'static>,
+) {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin = Address::generate(&env);
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+
+    let distribution = Address::generate(&env);
+    let funding_source = Address::generate(&env);
+
+    StellarAssetClient::new(&env, &token_id).mint(&distribution, &500);
+    StellarAssetClient::new(&env, &token_id).mint(&funding_source, &100_000);
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register(BulkPaymentContract, ());
+    let client = BulkPaymentContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    (env, distribution, funding_source, token_id, client)
+}
+
+#[test]
+fn test_set_refund_config_and_read_back() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+    let _ = &env;
+
+    client.set_refund_config(&distribution, &funding_source, &token, &1_000, &5_000);
+
+    let config = client.get_refund_config();
+    assert_eq!(config.distribution_account, distribution);
+    assert_eq!(config.funding_source, funding_source);
+    assert_eq!(config.token, token);
+    assert_eq!(config.threshold, 1_000);
+    assert_eq!(config.refund_amount, 5_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #27)")]
+fn test_set_refund_config_invalid_threshold_panics() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+    let _ = &env;
+    client.set_refund_config(&distribution, &funding_source, &token, &0, &5_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #27)")]
+fn test_set_refund_config_invalid_amount_panics() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+    let _ = &env;
+    client.set_refund_config(&distribution, &funding_source, &token, &1_000, &-1);
+}
+
+#[test]
+fn test_check_and_refund_transfers_when_below_threshold() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+
+    client.set_refund_config(&distribution, &funding_source, &token, &1_000, &5_000);
+
+    let tc = TokenClient::new(&env, &token);
+    assert_eq!(tc.balance(&distribution), 500);
+
+    let refunded = client.check_and_refund();
+    assert_eq!(refunded, 5_000);
+    assert_eq!(tc.balance(&distribution), 5_500);
+    assert_eq!(tc.balance(&funding_source), 95_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #29)")]
+fn test_check_and_refund_not_needed_when_above_threshold() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+
+    StellarAssetClient::new(&env, &token).mint(&distribution, &10_000);
+
+    client.set_refund_config(&distribution, &funding_source, &token, &1_000, &5_000);
+
+    client.check_and_refund();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #28)")]
+fn test_check_and_refund_no_config_panics() {
+    let (_env, _distribution, _funding_source, _token, client) = setup_with_funding_source();
+    client.check_and_refund();
+}
+
+#[test]
+fn test_remove_refund_config() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+    let _ = &env;
+
+    client.set_refund_config(&distribution, &funding_source, &token, &1_000, &5_000);
+    assert!(client.try_get_refund_config().is_ok());
+
+    client.remove_refund_config();
+
+    let result = client.try_get_refund_config();
+    assert!(result.is_err());
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #17)")]
+fn test_check_and_refund_blocked_when_paused() {
+    let (env, distribution, funding_source, token, client) = setup_with_funding_source();
+    let _ = &env;
+
+    client.set_refund_config(&distribution, &funding_source, &token, &1_000, &5_000);
+    client.set_paused(&true);
+
+    client.check_and_refund();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── STORAGE OPTIMIZATION TESTS (Issue #599) ──────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_archive_batch_statuses_compresses_entries() {
+    let (env, sender, token, client) = setup();
+
+    let r1 = Address::generate(&env);
+    let r2 = Address::generate(&env);
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    payments.push_back(PaymentOp {
+        recipient: r1.clone(),
+        amount: 300,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+    payments.push_back(PaymentOp {
+        recipient: r2.clone(),
+        amount: 0,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+
+    let batch_id =
+        client.execute_batch_v2(&sender, &token, &payments, &client.get_sequence(), &false);
+
+    let e0 = client.get_payment_entry(&batch_id, &0);
+    assert_eq!(e0.status, PaymentStatus::Sent);
+    let e1 = client.get_payment_entry(&batch_id, &1);
+    assert_eq!(e1.status, PaymentStatus::Failed);
+
+    let map = client.archive_batch_statuses(&batch_id);
+    assert_eq!(map.payment_count, 2);
+
+    let s0 = client.get_archived_status(&batch_id, &0);
+    assert_eq!(s0, PaymentStatus::Sent);
+
+    let s1 = client.get_archived_status(&batch_id, &1);
+    assert_eq!(s1, PaymentStatus::Failed);
+
+    let result = client.try_get_payment_entry(&batch_id, &0);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_archive_16_payments_fits_in_one_word() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin = Address::generate(&env);
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+    let sender = Address::generate(&env);
+    StellarAssetClient::new(&env, &token_id).mint(&sender, &1_000_000);
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register(BulkPaymentContract, ());
+    let client = BulkPaymentContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    for _ in 0..16 {
+        payments.push_back(PaymentOp {
+            recipient: Address::generate(&env),
+            amount: 10,
+            category: soroban_sdk::symbol_short!("payroll"),
+        });
+    }
+
+    let batch_id = client.execute_batch_v2(&sender, &token_id, &payments, &0, &true);
+
+    let map = client.archive_batch_statuses(&batch_id);
+    assert_eq!(map.payment_count, 16);
+    assert_eq!(map.status_words.len(), 1);
+
+    for i in 0..16u32 {
+        let status = client.get_archived_status(&batch_id, &i);
+        assert_eq!(status, PaymentStatus::Sent);
+    }
+}
+
+#[test]
+fn test_archive_17_payments_uses_two_words() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin = Address::generate(&env);
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+    let sender = Address::generate(&env);
+    StellarAssetClient::new(&env, &token_id).mint(&sender, &1_000_000);
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register(BulkPaymentContract, ());
+    let client = BulkPaymentContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    for _ in 0..17 {
+        payments.push_back(PaymentOp {
+            recipient: Address::generate(&env),
+            amount: 10,
+            category: soroban_sdk::symbol_short!("payroll"),
+        });
+    }
+
+    let batch_id = client.execute_batch_v2(&sender, &token_id, &payments, &0, &true);
+
+    let map = client.archive_batch_statuses(&batch_id);
+    assert_eq!(map.payment_count, 17);
+    assert_eq!(map.status_words.len(), 2);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #16)")]
+fn test_get_archived_status_out_of_range_panics() {
+    let (env, sender, token, client) = setup();
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    payments.push_back(PaymentOp {
+        recipient: Address::generate(&env),
+        amount: 100,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+
+    let batch_id = client.execute_batch_v2(&sender, &token, &payments, &0, &true);
+    client.archive_batch_statuses(&batch_id);
+
+    client.get_archived_status(&batch_id, &99);
+}
+
+#[test]
+fn test_get_batch_status_map() {
+    let (env, sender, token, client) = setup();
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    payments.push_back(PaymentOp {
+        recipient: Address::generate(&env),
+        amount: 50,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+
+    let batch_id = client.execute_batch_v2(&sender, &token, &payments, &0, &true);
+    client.archive_batch_statuses(&batch_id);
+
+    let map = client.get_batch_status_map(&batch_id);
+    assert_eq!(map.payment_count, 1);
+}
+
+#[test]
+fn test_reduce_batch_ttl_succeeds() {
+    let (env, sender, token, client) = setup();
+    let payments = one_payment(&env);
+
+    let batch_id = client.execute_batch(&sender, &token, &payments, &0);
+    client.reduce_batch_ttl(&batch_id);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #9)")]
+fn test_reduce_batch_ttl_not_found_panics() {
+    let (_env, _sender, _token, client) = setup();
+    client.reduce_batch_ttl(&999);
+}
+
+#[test]
+fn test_archive_refunded_status_preserved() {
+    let (env, sender, token, client) = setup();
+
+    let mut payments: Vec<PaymentOp> = Vec::new(&env);
+    payments.push_back(PaymentOp {
+        recipient: Address::generate(&env),
+        amount: 100,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+    payments.push_back(PaymentOp {
+        recipient: Address::generate(&env),
+        amount: 0,
+        category: soroban_sdk::symbol_short!("payroll"),
+    });
+
+    let batch_id =
+        client.execute_batch_v2(&sender, &token, &payments, &client.get_sequence(), &false);
+
+    client.refund_failed_payment(&batch_id, &1);
+    let entry = client.get_payment_entry(&batch_id, &1);
+    assert_eq!(entry.status, PaymentStatus::Refunded);
+
+    let map = client.archive_batch_statuses(&batch_id);
+    assert_eq!(map.payment_count, 2);
+
+    let s0 = client.get_archived_status(&batch_id, &0);
+    assert_eq!(s0, PaymentStatus::Sent);
+
+    let s1 = client.get_archived_status(&batch_id, &1);
+    assert_eq!(s1, PaymentStatus::Refunded);
+}

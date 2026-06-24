@@ -49,6 +49,14 @@ pub enum ContractError {
     ThrottleLimitExceeded = 24,
     /// Fee estimation inputs are invalid.
     InvalidFeeConfig = 25,
+    /// Auto-refund transfer failed or configuration is invalid.
+    AutoRefundFailed = 26,
+    /// Refund threshold or amount is invalid (zero or negative).
+    RefundThresholdInvalid = 27,
+    /// Auto-refund is not configured yet.
+    RefundConfigNotSet = 28,
+    /// Balance is above threshold — no refund needed.
+    RefundNotNeeded = 29,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -166,6 +174,34 @@ pub struct BatchAnalyticsEvent {
     pub total_sent: i128,
     pub payment_count: u32,
     pub timestamp: u64,
+}
+
+/// Emitted when the distribution account is automatically re-funded.
+#[contractevent]
+pub struct AccountRefundedEvent {
+    pub distribution_account: Address,
+    pub funding_source: Address,
+    pub token: Address,
+    pub amount: i128,
+    pub balance_before: i128,
+    pub balance_after: i128,
+}
+
+/// Emitted when auto-refund configuration is updated.
+#[contractevent]
+pub struct RefundConfigUpdatedEvent {
+    pub distribution_account: Address,
+    pub funding_source: Address,
+    pub token: Address,
+    pub threshold: i128,
+    pub refund_amount: i128,
+}
+
+/// Emitted when a batch status map is archived to compressed storage.
+#[contractevent]
+pub struct BatchArchivedEvent {
+    pub batch_id: u64,
+    pub payment_count: u32,
 }
 
 // ── Storage types ─────────────────────────────────────────────────────────────
@@ -292,6 +328,27 @@ pub struct ScheduledBatch {
     pub status: ScheduledBatchStatus,
 }
 
+/// Compressed batch status map: packs payment statuses (2 bits each) into u32 words.
+/// Each u32 holds statuses for 16 payments. This reduces storage footprint from
+/// O(N) individual keys to a single key per batch for status tracking.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct BatchStatusMap {
+    pub payment_count: u32,
+    pub status_words: Vec<u32>,
+}
+
+/// Configuration for automatic distribution account re-funding.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct RefundConfig {
+    pub distribution_account: Address,
+    pub funding_source: Address,
+    pub token: Address,
+    pub threshold: i128,
+    pub refund_amount: i128,
+}
+
 #[contracttype]
 pub enum DataKey {
     Admin,
@@ -317,6 +374,10 @@ pub enum DataKey {
     ScheduledBatchCount,
     /// Configurable network throttling limits
     ThrottleConfig,
+    /// Compressed batch status map for storage optimization (Issue #599)
+    BatchStatusMap(u64),
+    /// Auto-refund configuration for distribution accounts (Issue #600)
+    RefundConfig,
 }
 
 const MAX_BATCH_SIZE: u32 = 100;
@@ -327,6 +388,12 @@ const PERSISTENT_TTL_THRESHOLD: u32 = 20_000;
 const PERSISTENT_TTL_EXTEND_TO: u32 = 120_000;
 const TEMPORARY_TTL_THRESHOLD: u32 = 2_000;
 const TEMPORARY_TTL_EXTEND_TO: u32 = 20_000;
+
+const ARCHIVE_TTL_THRESHOLD: u32 = 5_000;
+const ARCHIVE_TTL_EXTEND_TO: u32 = 50_000;
+
+const BITS_PER_STATUS: u32 = 2;
+const STATUSES_PER_WORD: u32 = 16;
 
 // Approximate ledger counts for time windows.
 // Stellar closes a ledger roughly every 5 seconds.
@@ -527,6 +594,250 @@ impl BulkPaymentContract {
     /// Returns the active throttling configuration.
     pub fn get_throttle_config(env: Env) -> ThrottleConfig {
         Self::throttle_config(&env)
+    }
+
+    // ── Auto-refund configuration (Issue #600) ────────────────────────────
+
+    /// Configures automatic re-funding for a distribution account.
+    /// When the distribution account's token balance drops below `threshold`,
+    /// `check_and_refund` will transfer `refund_amount` from `funding_source`.
+    pub fn set_refund_config(
+        env: Env,
+        distribution_account: Address,
+        funding_source: Address,
+        token: Address,
+        threshold: i128,
+        refund_amount: i128,
+    ) -> Result<(), ContractError> {
+        Self::require_admin(&env)?;
+
+        if threshold <= 0 || refund_amount <= 0 {
+            return Err(ContractError::RefundThresholdInvalid);
+        }
+
+        let config = RefundConfig {
+            distribution_account: distribution_account.clone(),
+            funding_source: funding_source.clone(),
+            token: token.clone(),
+            threshold,
+            refund_amount,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::RefundConfig, &config);
+
+        RefundConfigUpdatedEvent {
+            distribution_account,
+            funding_source,
+            token,
+            threshold,
+            refund_amount,
+        }
+        .publish(&env);
+
+        Ok(())
+    }
+
+    /// Returns the current auto-refund configuration, if set.
+    pub fn get_refund_config(env: Env) -> Result<RefundConfig, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::RefundConfig)
+            .ok_or(ContractError::RefundConfigNotSet)
+    }
+
+    /// Removes the auto-refund configuration.
+    pub fn remove_refund_config(env: Env) -> Result<(), ContractError> {
+        Self::require_admin(&env)?;
+        env.storage().instance().remove(&DataKey::RefundConfig);
+        Ok(())
+    }
+
+    /// Checks the distribution account balance and transfers `refund_amount`
+    /// from the funding source if the balance is below the configured threshold.
+    /// The funding source must authorize the transfer.
+    ///
+    /// Returns the amount transferred (0 if no refund was needed).
+    pub fn check_and_refund(env: Env) -> Result<i128, ContractError> {
+        Self::require_not_paused(&env)?;
+
+        let config: RefundConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::RefundConfig)
+            .ok_or(ContractError::RefundConfigNotSet)?;
+
+        let token_client = token::Client::new(&env, &config.token);
+        let balance_before = token_client.balance(&config.distribution_account);
+
+        if balance_before >= config.threshold {
+            return Err(ContractError::RefundNotNeeded);
+        }
+
+        config.funding_source.require_auth();
+
+        token_client.transfer(
+            &config.funding_source,
+            &config.distribution_account,
+            &config.refund_amount,
+        );
+
+        let balance_after = token_client.balance(&config.distribution_account);
+
+        AccountRefundedEvent {
+            distribution_account: config.distribution_account,
+            funding_source: config.funding_source,
+            token: config.token,
+            amount: config.refund_amount,
+            balance_before,
+            balance_after,
+        }
+        .publish(&env);
+
+        Ok(config.refund_amount)
+    }
+
+    // ── Storage optimization (Issue #599) ────────────────────────────────
+
+    /// Archives a batch's individual PaymentEntry records into a compressed
+    /// status map. This reduces the storage footprint from N individual keys
+    /// to a single key holding a bit-packed status vector.
+    ///
+    /// Call this after a batch is fully processed and all refunds are complete.
+    /// Individual PaymentEntry keys are removed after archival.
+    pub fn archive_batch_statuses(
+        env: Env,
+        batch_id: u64,
+    ) -> Result<BatchStatusMap, ContractError> {
+        Self::require_admin(&env)?;
+
+        let batch: BatchRecord = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Batch(batch_id))
+            .ok_or(ContractError::BatchNotFound)?;
+
+        let payment_count = batch.success_count + batch.fail_count;
+        let word_count = (payment_count + STATUSES_PER_WORD - 1) / STATUSES_PER_WORD;
+        let mut status_words: Vec<u32> = Vec::new(&env);
+
+        for w in 0..word_count {
+            let mut word: u32 = 0;
+            for s in 0..STATUSES_PER_WORD {
+                let idx = w * STATUSES_PER_WORD + s;
+                if idx >= payment_count {
+                    break;
+                }
+                let entry_key = DataKey::PaymentEntry(batch_id, idx);
+                let status_bits: u32 = if let Some(entry) = env
+                    .storage()
+                    .temporary()
+                    .get::<DataKey, PaymentEntry>(&entry_key)
+                {
+                    match entry.status {
+                        PaymentStatus::Pending => 0,
+                        PaymentStatus::Sent => 1,
+                        PaymentStatus::Failed => 2,
+                        PaymentStatus::Refunded => 3,
+                    }
+                } else {
+                    0
+                };
+                word |= status_bits << (s * BITS_PER_STATUS);
+                env.storage().temporary().remove(&entry_key);
+            }
+            status_words.push_back(word);
+        }
+
+        let map = BatchStatusMap {
+            payment_count,
+            status_words: status_words.clone(),
+        };
+
+        let key = DataKey::BatchStatusMap(batch_id);
+        env.storage().persistent().set(&key, &map);
+        env.storage().persistent().extend_ttl(
+            &key,
+            ARCHIVE_TTL_THRESHOLD,
+            ARCHIVE_TTL_EXTEND_TO,
+        );
+
+        BatchArchivedEvent {
+            batch_id,
+            payment_count,
+        }
+        .publish(&env);
+
+        Ok(map)
+    }
+
+    /// Reads a payment status from a compressed batch status map.
+    /// Returns the PaymentStatus for the given payment index.
+    pub fn get_archived_status(
+        env: Env,
+        batch_id: u64,
+        payment_index: u32,
+    ) -> Result<PaymentStatus, ContractError> {
+        let key = DataKey::BatchStatusMap(batch_id);
+        let map: BatchStatusMap = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(ContractError::BatchNotFound)?;
+
+        if payment_index >= map.payment_count {
+            return Err(ContractError::PaymentNotFound);
+        }
+
+        let word_index = payment_index / STATUSES_PER_WORD;
+        let bit_offset = (payment_index % STATUSES_PER_WORD) * BITS_PER_STATUS;
+        let word = map.status_words.get(word_index).unwrap_or(0);
+        let bits = (word >> bit_offset) & 0b11;
+
+        let status = match bits {
+            0 => PaymentStatus::Pending,
+            1 => PaymentStatus::Sent,
+            2 => PaymentStatus::Failed,
+            3 => PaymentStatus::Refunded,
+            _ => PaymentStatus::Pending,
+        };
+
+        Ok(status)
+    }
+
+    /// Returns the compressed batch status map for a given batch.
+    pub fn get_batch_status_map(
+        env: Env,
+        batch_id: u64,
+    ) -> Result<BatchStatusMap, ContractError> {
+        let key = DataKey::BatchStatusMap(batch_id);
+        env.storage()
+            .persistent()
+            .get(&key)
+            .ok_or(ContractError::BatchNotFound)
+    }
+
+    /// Reduces TTL on old batch records to free storage sooner.
+    /// Call periodically for batches older than the active window.
+    pub fn reduce_batch_ttl(
+        env: Env,
+        batch_id: u64,
+    ) -> Result<(), ContractError> {
+        Self::require_admin(&env)?;
+
+        let key = DataKey::Batch(batch_id);
+        if !env.storage().persistent().has(&key) {
+            return Err(ContractError::BatchNotFound);
+        }
+
+        env.storage().persistent().extend_ttl(
+            &key,
+            ARCHIVE_TTL_THRESHOLD,
+            ARCHIVE_TTL_EXTEND_TO,
+        );
+
+        Ok(())
     }
 
     /// Estimates the fee budget for a batch using an externally supplied
