@@ -1,5 +1,13 @@
 import React, { useState, useRef, useCallback, useId } from 'react';
-import { Upload, AlertCircle, CheckCircle, XCircle, FileSpreadsheet, Loader2, Download } from 'lucide-react';
+import {
+  Upload,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  FileSpreadsheet,
+  Loader2,
+  Download,
+} from 'lucide-react';
 import { useNotification } from '../hooks/useNotification';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -349,7 +357,10 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet className="w-4 h-4 text-[var(--accent)] shrink-0" aria-hidden="true" />
+              <FileSpreadsheet
+                className="w-4 h-4 text-[var(--accent)] shrink-0"
+                aria-hidden="true"
+              />
               <p className="text-sm font-semibold text-[var(--text)] truncate">{fileName}</p>
             </div>
             {invalidRowsCount > 0 && (

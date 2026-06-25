@@ -117,7 +117,10 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
       <div id={announcementId} className="sr-only" aria-live="polite" aria-atomic="true">
         Page {currentPage} of {totalPages}
       </div>
-      <nav className={`flex items-center justify-center gap-2 ${className}`} aria-label="Pagination">
+      <nav
+        className={`flex items-center justify-center gap-2 ${className}`}
+        aria-label="Pagination"
+      >
         {showFirstLast && (
           <button
             onClick={() => handlePageChange(1)}
@@ -171,7 +174,10 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   {showPageJump && (
                     <div className="absolute top-full mt-2 z-10 bg-[var(--surface)] border border-[var(--border-hi)] rounded-lg shadow-lg p-3 min-w-max">
                       <div className="flex items-center gap-2 mb-2">
-                        <label htmlFor="page-jump-input" className="text-xs font-medium text-[var(--text)]">
+                        <label
+                          htmlFor="page-jump-input"
+                          className="text-xs font-medium text-[var(--text)]"
+                        >
                           Go to page:
                         </label>
                         <button
@@ -244,7 +250,10 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   {showPageJump && (
                     <div className="absolute top-full mt-2 z-10 bg-[var(--surface)] border border-[var(--border-hi)] rounded-lg shadow-lg p-3 min-w-max">
                       <div className="flex items-center gap-2 mb-2">
-                        <label htmlFor="page-jump-input" className="text-xs font-medium text-[var(--text)]">
+                        <label
+                          htmlFor="page-jump-input"
+                          className="text-xs font-medium text-[var(--text)]"
+                        >
                           Go to page:
                         </label>
                         <button
