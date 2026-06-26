@@ -76,9 +76,7 @@ export default function TransactionHistory() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const inInput =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       if (e.key === '/' && !inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();

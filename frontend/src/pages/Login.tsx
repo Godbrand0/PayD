@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { ArrowRight, BriefcaseBusiness, Chrome, Github, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Chrome,
+  Github,
+  RefreshCw,
+  ShieldCheck,
+  Wallet,
+} from 'lucide-react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { clearPostAuthRedirect, storePostAuthRedirect } from '../providers/authRedirect';
 

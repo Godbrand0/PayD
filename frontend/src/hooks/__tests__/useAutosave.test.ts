@@ -32,10 +32,9 @@ describe('useAutosave', () => {
   });
 
   it('sets saving=true while debounce is pending and false after successful write', async () => {
-    const { result, rerender } = renderHook(
-      ({ data }) => useAutosave('key', data, 500),
-      { initialProps: { data: { name: 'a' } } }
-    );
+    const { result, rerender } = renderHook(({ data }) => useAutosave('key', data, 500), {
+      initialProps: { data: { name: 'a' } },
+    });
 
     // First cycle is skipped
     rerender({ data: { name: 'b' } });
@@ -62,10 +61,9 @@ describe('useAutosave', () => {
     };
     vi.mocked(LocalStorageHelper).mockImplementationOnce(() => mockInstance as never);
 
-    const { result, rerender } = renderHook(
-      ({ data }) => useAutosave('key', data, 300),
-      { initialProps: { data: { name: 'a' } } }
-    );
+    const { result, rerender } = renderHook(({ data }) => useAutosave('key', data, 300), {
+      initialProps: { data: { name: 'a' } },
+    });
 
     rerender({ data: { name: 'b' } });
 
@@ -89,10 +87,9 @@ describe('useAutosave', () => {
     };
     vi.mocked(LocalStorageHelper).mockImplementationOnce(() => mockInstance as never);
 
-    const { result, rerender } = renderHook(
-      ({ data }) => useAutosave('key', data, 100),
-      { initialProps: { data: { v: 1 } } }
-    );
+    const { result, rerender } = renderHook(({ data }) => useAutosave('key', data, 100), {
+      initialProps: { data: { v: 1 } },
+    });
 
     rerender({ data: { v: 2 } });
 
@@ -118,15 +115,18 @@ describe('useAutosave', () => {
     };
     vi.mocked(LocalStorageHelper).mockImplementationOnce(() => mockInstance as never);
 
-    const { rerender } = renderHook(
-      ({ data }) => useAutosave('key', data, 500),
-      { initialProps: { data: 'a' } }
-    );
+    const { rerender } = renderHook(({ data }) => useAutosave('key', data, 500), {
+      initialProps: { data: 'a' },
+    });
 
     rerender({ data: 'b' });
-    await act(async () => { vi.advanceTimersByTime(200); });
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
     rerender({ data: 'c' });
-    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
 
     // Only one write should have happened (for 'c')
     expect(mockSet).toHaveBeenCalledTimes(1);

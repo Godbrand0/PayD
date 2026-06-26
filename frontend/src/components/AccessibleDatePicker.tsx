@@ -413,7 +413,7 @@ export const AccessibleDatePicker: React.FC<AccessibleDatePickerProps> = ({
                 const isHighlighted = dateStr === highlightedDate;
                 const isDisabledDate = Boolean(
                   (minDate && dateStr && dateStr < minDate) ||
-                    (maxDate && dateStr && dateStr > maxDate)
+                  (maxDate && dateStr && dateStr > maxDate)
                 );
 
                 return (

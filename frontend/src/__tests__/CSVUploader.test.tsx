@@ -116,7 +116,10 @@ describe('CSVUploader — RFC 4180 parsing (#956)', () => {
       />
     );
 
-    const csv = ['name,wallet_address', 'Alice,GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN'].join('\n');
+    const csv = [
+      'name,wallet_address',
+      'Alice,GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN',
+    ].join('\n');
 
     uploadFile(makeFile(csv));
 

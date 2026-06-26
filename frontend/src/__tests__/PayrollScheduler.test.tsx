@@ -13,7 +13,13 @@ vi.mock('@stellar/design-system', () => ({
     delete sanitized.fieldSize;
     return <input {...sanitized} />;
   },
-  Select: (props: React.SelectHTMLAttributes<HTMLSelectElement> & { fieldSize?: string; children: React.ReactNode; label?: string }) => {
+  Select: (
+    props: React.SelectHTMLAttributes<HTMLSelectElement> & {
+      fieldSize?: string;
+      children: React.ReactNode;
+      label?: string;
+    }
+  ) => {
     const { children, label, ...rest } = props;
     const sanitized = { ...rest };
     delete sanitized.fieldSize;
@@ -46,7 +52,17 @@ vi.mock('../components/CountdownTimer', () => ({
 }));
 
 vi.mock('../components/FormField', () => ({
-  FormField: ({ children, label, error, helpText }: { children: React.ReactNode; label?: string; error?: string; helpText?: string }) => (
+  FormField: ({
+    children,
+    label,
+    error,
+    helpText,
+  }: {
+    children: React.ReactNode;
+    label?: string;
+    error?: string;
+    helpText?: string;
+  }) => (
     <div>
       <label>{label}</label>
       {children}

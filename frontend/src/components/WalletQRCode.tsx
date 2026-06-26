@@ -1,7 +1,17 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@stellar/design-system';
-import { Copy, Download, Key, Eye, BookOpen, ChevronDown, Coins, Printer, WalletCards } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Key,
+  Eye,
+  BookOpen,
+  ChevronDown,
+  Coins,
+  Printer,
+  WalletCards,
+} from 'lucide-react';
 import { useNotification } from '../hooks/useNotification';
 
 interface WalletQRCodeProps {

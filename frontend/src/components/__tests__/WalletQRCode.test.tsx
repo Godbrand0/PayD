@@ -34,9 +34,7 @@ describe('WalletQRCode', () => {
 
     fireEvent.click(downloadBtn);
 
-    const anchorCalls = createElementSpy.mock.results.filter(
-      (r) => r.value?.tagName === 'A'
-    );
+    const anchorCalls = createElementSpy.mock.results.filter((r) => r.value?.tagName === 'A');
     expect(anchorCalls.length).toBeGreaterThan(0);
 
     const anchor = anchorCalls[0].value;

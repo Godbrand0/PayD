@@ -270,7 +270,9 @@ describe('validateEmailDomain', () => {
   });
 
   it('returns error for invalid email format', () => {
-    expect(validateEmailDomain('not-an-email', ['company.com'])).toBe('Enter a valid email address');
+    expect(validateEmailDomain('not-an-email', ['company.com'])).toBe(
+      'Enter a valid email address'
+    );
   });
 
   it('returns error for empty email', () => {

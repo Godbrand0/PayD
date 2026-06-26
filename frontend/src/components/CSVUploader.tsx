@@ -26,7 +26,6 @@ interface CSVUploaderProps {
   strictHeaderValidation?: boolean;
 }
 
-
 /**
  * Parse a single RFC 4180 CSV line into an array of field values.
  * Handles quoted fields, embedded commas, and escaped double-quotes ("").

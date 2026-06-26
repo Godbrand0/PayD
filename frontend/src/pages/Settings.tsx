@@ -118,12 +118,8 @@ export default function Settings() {
               )}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[var(--text)]">
-                {t('settings.themeLabel')}
-              </h2>
-              <p className="text-sm text-[var(--muted)] mt-1">
-                {t('settings.themeDescription')}
-              </p>
+              <h2 className="text-lg font-bold text-[var(--text)]">{t('settings.themeLabel')}</h2>
+              <p className="text-sm text-[var(--muted)] mt-1">{t('settings.themeDescription')}</p>
             </div>
           </div>
 

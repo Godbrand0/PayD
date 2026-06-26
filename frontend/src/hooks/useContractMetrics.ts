@@ -84,9 +84,8 @@ async function simulateReadCall(
   sourceAccount: string,
   network: NetworkType
 ): Promise<unknown> {
-  const { rpc, Contract, TransactionBuilder, Networks, BASE_FEE, scValToNative } = await import(
-    '@stellar/stellar-sdk'
-  );
+  const { rpc, Contract, TransactionBuilder, Networks, BASE_FEE, scValToNative } =
+    await import('@stellar/stellar-sdk');
 
   const rpcUrl =
     network === 'mainnet'
